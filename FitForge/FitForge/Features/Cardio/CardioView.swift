@@ -12,86 +12,158 @@ struct CardioView: View {
     @State private var rpe = 5
     @State private var sessionType = "easy"
 
+    private let sessionTypes = ["easy", "tempo", "interval", "long", "race", "hyrox"]
+
     var body: some View {
         NavigationStack {
-            List {
-                Section("記録を追加") {
-                    Picker("種目", selection: $kind) {
-                        ForEach(WorkoutKind.allCases.filter { $0 != .strength }) { kind in
-                            Text(kind.rawValue).tag(kind)
-                        }
-                    }
-
-                    Picker("タイプ", selection: $sessionType) {
-                        ForEach(["easy", "tempo", "interval", "long", "race", "hyrox"], id: \.self) { Text($0).tag($0) }
-                    }
-
-                    Stepper(value: $distanceKm, in: 0...100, step: 0.5) {
-                        Text("距離 \(distanceKm, specifier: "%.1f")km")
-                            .monospacedDigit()
-                    }
-
-                    Stepper(value: $durationMinutes, in: 1...600) {
-                        Text("時間 \(durationMinutes)分")
-                            .monospacedDigit()
-                    }
-
-                    Stepper(value: $calories, in: 0...3000, step: 25) {
-                        Text("消費 \(calories)kcal")
-                            .monospacedDigit()
-                    }
-
-                    Stepper(value: $rpe, in: 1...10) {
-                        Text("きつさ RPE \(rpe)")
-                            .monospacedDigit()
-                    }
-
-                    TextField("メモ", text: $note)
-
-                    Button {
-                        let saved = store.addCardioSession(kind: kind, distanceKm: distanceKm, durationMinutes: durationMinutes, calories: calories, note: note, rpe: rpe, sessionType: sessionType)
-                        modelContext.insert(CardioEntry(from: saved))
-                        try? modelContext.save()
-                        note = ""
-                    } label: {
-                        Label("追加", systemImage: "plus.circle.fill")
-                    }
+            ScrollView {
+                VStack(spacing: 12) {
+                    inputPanel
+                    summaryPanel
+                    recentPanel
                 }
+                .padding()
+            }
+            .background(FF.background)
+            .navigationTitle("運動")
+        }
+    }
 
-                Section("種目別サマリー") {
-                    ForEach(WorkoutKind.allCases.filter { $0 != .strength }) { kind in
-                        let sessions = store.cardioSessions.filter { $0.kind == kind }
-                        HStack {
-                            Label(kind.rawValue, systemImage: icon(for: kind))
-                            Spacer()
-                            Text("\(sessions.map(\.distanceKm).reduce(0, +), specifier: "%.1f") km")
-                                .monospacedDigit()
-                        }
-                    }
-                }
+    // MARK: 記録を追加
 
-                Section("最近の記録") {
-                    ForEach(store.cardioSessions) { session in
-                        VStack(alignment: .leading, spacing: 6) {
-                            HStack {
-                                Label(session.kind.rawValue, systemImage: icon(for: session.kind))
-                                Spacer()
-                                Text(session.paceText)
-                                    .font(.caption.monospacedDigit())
-                                    .foregroundStyle(.secondary)
-                            }
-                            Text("\(session.distanceKm, specifier: "%.1f")km / \(session.durationMinutes)分 / \(session.calories)kcal")
-                                .font(.subheadline)
-                            Text("\(session.sessionType) / RPE \(session.rpe ?? 0) / \(session.note)")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+    private var inputPanel: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            SectionHeader(title: "記録を追加")
+
+            FFSegmentedPicker(
+                options: WorkoutKind.allCases.filter { $0 != .strength },
+                label: { $0.rawValue },
+                selection: $kind,
+                tint: FF.workoutColor(kind)
+            )
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(sessionTypes, id: \.self) { type in
+                        FFChip(
+                            text: type,
+                            color: FF.workoutColor(kind),
+                            isSelected: sessionType == type
+                        ) {
+                            sessionType = type
                         }
-                        .padding(.vertical, 4)
                     }
                 }
             }
-            .navigationTitle("運動")
+
+            FFStepperRow(
+                label: "距離",
+                valueText: String(format: "%.1fkm", distanceKm),
+                onMinus: { distanceKm = max(0, distanceKm - 0.5) },
+                onPlus: { distanceKm = min(100, distanceKm + 0.5) }
+            )
+
+            FFStepperRow(
+                label: "時間",
+                valueText: "\(durationMinutes)分",
+                onMinus: { durationMinutes = max(1, durationMinutes - 1) },
+                onPlus: { durationMinutes = min(600, durationMinutes + 1) }
+            )
+
+            FFStepperRow(
+                label: "消費",
+                valueText: "\(calories)kcal",
+                onMinus: { calories = max(0, calories - 25) },
+                onPlus: { calories = min(3000, calories + 25) }
+            )
+
+            FFStepperRow(
+                label: "きつさ RPE",
+                valueText: "\(rpe)",
+                onMinus: { rpe = max(1, rpe - 1) },
+                onPlus: { rpe = min(10, rpe + 1) }
+            )
+
+            TextField("メモ", text: $note)
+                .ffFieldStyle()
+
+            Button {
+                let saved = store.addCardioSession(kind: kind, distanceKm: distanceKm, durationMinutes: durationMinutes, calories: calories, note: note, rpe: rpe, sessionType: sessionType)
+                modelContext.insert(CardioEntry(from: saved))
+                try? modelContext.save()
+                note = ""
+            } label: {
+                Label("追加", systemImage: "plus.circle.fill")
+            }
+            .buttonStyle(FFPrimaryButtonStyle())
         }
+        .panelStyle()
+    }
+
+    // MARK: 種目別サマリー
+
+    private var summaryPanel: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            SectionHeader(title: "種目別サマリー")
+
+            ForEach(WorkoutKind.allCases.filter { $0 != .strength }) { kind in
+                let sessions = store.cardioSessions.filter { $0.kind == kind }
+                HStack(spacing: 10) {
+                    IconSeat(systemName: icon(for: kind), color: FF.workoutColor(kind))
+                    Text(kind.rawValue)
+                        .font(FF.fontBody)
+                        .foregroundStyle(FF.textPrimary)
+                    Spacer()
+                    HStack(alignment: .lastTextBaseline, spacing: 3) {
+                        Text(String(format: "%.1f", sessions.map(\.distanceKm).reduce(0, +)))
+                            .font(FF.fontNumber)
+                            .monospacedDigit()
+                            .foregroundStyle(FF.workoutColor(kind))
+                        Text("km")
+                            .font(FF.fontCaption)
+                            .foregroundStyle(FF.textSecondary)
+                    }
+                }
+            }
+        }
+        .panelStyle()
+    }
+
+    // MARK: 最近の記録
+
+    private var recentPanel: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            SectionHeader(title: "最近の記録")
+
+            ForEach(store.cardioSessions) { session in
+                HStack(alignment: .top, spacing: 12) {
+                    IconSeat(systemName: icon(for: session.kind), color: FF.workoutColor(session.kind))
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack(spacing: 8) {
+                            Text(session.kind.rawValue)
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundStyle(FF.textPrimary)
+                            FFBadge(text: session.sessionType, color: FF.workoutColor(session.kind))
+                            Spacer()
+                            Text(session.paceText)
+                                .font(.system(size: 13, weight: .medium, design: .rounded))
+                                .monospacedDigit()
+                                .foregroundStyle(FF.textSecondary)
+                        }
+                        Text("\(session.distanceKm, specifier: "%.1f")km / \(session.durationMinutes)分 / \(session.calories)kcal")
+                            .font(.system(size: 15, weight: .semibold, design: .rounded))
+                            .monospacedDigit()
+                            .foregroundStyle(FF.workoutColor(session.kind))
+                        Text("RPE \(session.rpe ?? 0)\(session.note.isEmpty ? "" : " / \(session.note)")")
+                            .font(FF.fontCaption)
+                            .foregroundStyle(FF.textSecondary)
+                    }
+                }
+                .padding(12)
+                .background(FF.surfaceSecondary.opacity(0.6), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            }
+        }
+        .panelStyle()
     }
 
     private func icon(for kind: WorkoutKind) -> String {

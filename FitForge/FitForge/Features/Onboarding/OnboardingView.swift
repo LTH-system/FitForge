@@ -12,18 +12,30 @@ struct OnboardingView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 22) {
-                    header
-                    goalSection
-                    weightSection
-                    rhythmSection
-                    habitsSection
-                    startButton
+            ZStack(alignment: .top) {
+                FF.background
+                    .ignoresSafeArea()
+
+                Circle()
+                    .fill(FF.accentGradient)
+                    .frame(width: 340, height: 340)
+                    .blur(radius: 80)
+                    .opacity(0.25)
+                    .offset(y: -140)
+                    .ignoresSafeArea()
+
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 22) {
+                        header
+                        goalSection
+                        weightSection
+                        rhythmSection
+                        habitsSection
+                        startButton
+                    }
+                    .padding()
                 }
-                .padding()
             }
-            .background(Color(.systemGroupedBackground))
             .navigationTitle("初期設定")
             .onAppear {
                 currentWeightKg = store.latestWeight
@@ -37,88 +49,124 @@ struct OnboardingView: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("あなた用に整えます")
-                .font(.largeTitle.bold())
+                .font(.system(size: 30, weight: .bold, design: .rounded))
+                .foregroundStyle(FF.textPrimary)
             Text("最初は細かくしすぎません。目的と生活リズムだけ決めて、今日やることが見える状態にします。")
-                .foregroundStyle(.secondary)
+                .font(FF.fontBody)
+                .lineSpacing(5)
+                .foregroundStyle(FF.textSecondary)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .panelStyle()
     }
 
     private var goalSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("目的")
-                .font(.headline)
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 130), spacing: 8)], spacing: 8) {
+            SectionHeader(title: "目的", subtitle: "いちばん近いものを1つ選んでください")
+            VStack(spacing: 8) {
                 ForEach(PrimaryGoal.allCases) { goal in
-                    Button {
-                        primaryGoal = goal
-                    } label: {
-                        Label(goal.rawValue, systemImage: icon(for: goal))
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    .buttonStyle(.bordered)
-                    .tint(primaryGoal == goal ? .teal : .secondary)
+                    goalCard(goal)
                 }
             }
         }
         .panelStyle()
     }
 
+    private func goalCard(_ goal: PrimaryGoal) -> some View {
+        let isSelected = primaryGoal == goal
+        return Button {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                primaryGoal = goal
+            }
+        } label: {
+            HStack(spacing: 12) {
+                IconSeat(systemName: icon(for: goal), color: isSelected ? FF.accent : FF.textTertiary, size: 36)
+                Text(goal.rawValue)
+                    .font(.system(size: 16, weight: isSelected ? .semibold : .regular))
+                    .foregroundStyle(FF.textPrimary)
+                Spacer()
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 20))
+                    .foregroundStyle(isSelected ? FF.accent : FF.separator)
+            }
+            .padding(.horizontal, 14)
+            .frame(maxWidth: .infinity, minHeight: 62, alignment: .leading)
+            .background(
+                isSelected ? FF.accentSoft : FF.surface,
+                in: RoundedRectangle(cornerRadius: 16, style: .continuous)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .strokeBorder(isSelected ? FF.accent : FF.separator, lineWidth: isSelected ? 1.5 : 1)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
     private var weightSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("体重目標")
-                .font(.headline)
-            Stepper(value: $currentWeightKg, in: 30...200, step: 0.1) {
-                Text("現在 \(currentWeightKg, specifier: "%.1f")kg")
-                    .monospacedDigit()
-            }
-            Stepper(value: $targetWeightKg, in: 30...200, step: 0.1) {
-                Text("目標 \(targetWeightKg, specifier: "%.1f")kg")
-                    .monospacedDigit()
-            }
+            SectionHeader(title: "体重目標")
+            FFStepperRow(
+                label: "現在",
+                valueText: String(format: "%.1f kg", currentWeightKg),
+                onMinus: { currentWeightKg = max(30, currentWeightKg - 0.1) },
+                onPlus: { currentWeightKg = min(200, currentWeightKg + 0.1) }
+            )
+            FFStepperRow(
+                label: "目標",
+                valueText: String(format: "%.1f kg", targetWeightKg),
+                onMinus: { targetWeightKg = max(30, targetWeightKg - 0.1) },
+                onPlus: { targetWeightKg = min(200, targetWeightKg + 0.1) }
+            )
             Text("目標はあとで変更できます。急ぎすぎず、週平均で見ていきます。")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .font(FF.fontCaption)
+                .foregroundStyle(FF.textSecondary)
         }
         .panelStyle()
     }
 
     private var rhythmSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("1日の区切り")
-                .font(.headline)
-            Stepper(value: $dayStartHour, in: 0...23) {
-                Text("起床時刻 \(dayStartHour):\(String(format: "%02d", dayStartMinute))")
-                    .monospacedDigit()
-            }
-            Picker("分", selection: $dayStartMinute) {
-                Text("00").tag(0)
-                Text("15").tag(15)
-                Text("30").tag(30)
-                Text("45").tag(45)
-            }
-            .pickerStyle(.segmented)
+            SectionHeader(title: "1日の区切り")
+            FFStepperRow(
+                label: "起床時刻",
+                valueText: "\(dayStartHour):\(String(format: "%02d", dayStartMinute))",
+                onMinus: { dayStartHour = max(0, dayStartHour - 1) },
+                onPlus: { dayStartHour = min(23, dayStartHour + 1) }
+            )
+            FFSegmentedPicker(
+                options: [0, 15, 30, 45],
+                label: { String(format: "%02d", $0) },
+                selection: $dayStartMinute,
+                tint: FF.accent
+            )
             Text("深夜の食事や運動を、あなたの生活リズムに合わせて前日扱いにできます。")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .font(FF.fontCaption)
+                .foregroundStyle(FF.textSecondary)
         }
         .panelStyle()
     }
 
     private var habitsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("続け方")
-                .font(.headline)
-            Stepper(value: $weeklyWorkoutDays, in: 0...7) {
-                Text("週 \(weeklyWorkoutDays) 回運動したい")
-                    .monospacedDigit()
+            SectionHeader(title: "続け方")
+            FFStepperRow(
+                label: "運動したい回数",
+                valueText: "週 \(weeklyWorkoutDays) 回",
+                onMinus: { weeklyWorkoutDays = max(0, weeklyWorkoutDays - 1) },
+                onPlus: { weeklyWorkoutDays = min(7, weeklyWorkoutDays + 1) }
+            )
+            VStack(alignment: .leading, spacing: 6) {
+                Text("食事の記録スタイル")
+                    .font(FF.fontCaption.weight(.medium))
+                    .foregroundStyle(FF.textSecondary)
+                FFSegmentedPicker(
+                    options: Array(MealTrackingStyle.allCases),
+                    label: { $0.rawValue },
+                    selection: $mealTrackingStyle,
+                    tint: FF.accent
+                )
             }
-            Picker("食事記録", selection: $mealTrackingStyle) {
-                ForEach(MealTrackingStyle.allCases) { style in
-                    Text(style.rawValue).tag(style)
-                }
-            }
-            .pickerStyle(.segmented)
         }
         .panelStyle()
     }
@@ -136,10 +184,8 @@ struct OnboardingView: View {
             )
         } label: {
             Label("FitForgeを始める", systemImage: "arrow.right.circle.fill")
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 6)
         }
-        .buttonStyle(.borderedProminent)
+        .buttonStyle(FFPrimaryButtonStyle())
     }
 
     private func icon(for goal: PrimaryGoal) -> String {

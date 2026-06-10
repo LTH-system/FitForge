@@ -34,40 +34,64 @@ struct TrainingView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 18) {
-                    Picker("記録を見る種目", selection: $selectedExercise) {
-                        ForEach(exercises, id: \.self) { Text($0).tag($0) }
-                    }
-                    .pickerStyle(.menu)
-
+                VStack(spacing: 12) {
+                    exercisePickerCapsule
                     inputPanel
                     progressPanel
                     reminderPanel
                 }
                 .padding()
             }
-            .background(Color(.systemGroupedBackground))
+            .background(FF.background)
             .navigationTitle("筋トレ")
         }
     }
 
-    private var inputPanel: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("記録を追加")
-                .font(.headline)
+    // MARK: 種目選択（カプセル包み）
 
-            TextField("種目名", text: $exerciseName)
-                .textFieldStyle(.roundedBorder)
-
-            Picker("部位", selection: $selectedCategory) {
-                Text("すべて").tag(nil as ExerciseCategory?)
-                ForEach(ExerciseCategory.allCases) { category in
-                    Text(category.rawValue).tag(category as ExerciseCategory?)
-                }
+    private var exercisePickerCapsule: some View {
+        HStack(spacing: 8) {
+            IconSeat(systemName: "dumbbell.fill", color: FF.strength, size: 28)
+            Picker("記録を見る種目", selection: $selectedExercise) {
+                ForEach(exercises, id: \.self) { Text($0).tag($0) }
             }
             .pickerStyle(.menu)
+            .tint(FF.strength)
+            Spacer()
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(FF.surfaceSecondary, in: Capsule())
+    }
 
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 120), spacing: 8)], spacing: 8) {
+    // MARK: 記録を追加
+
+    private var inputPanel: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            SectionHeader(title: "記録を追加")
+
+            TextField("種目名", text: $exerciseName)
+                .ffFieldStyle()
+
+            HStack(spacing: 8) {
+                Text("部位")
+                    .font(FF.fontCaption.weight(.medium))
+                    .foregroundStyle(FF.textSecondary)
+                Picker("部位", selection: $selectedCategory) {
+                    Text("すべて").tag(nil as ExerciseCategory?)
+                    ForEach(ExerciseCategory.allCases) { category in
+                        Text(category.rawValue).tag(category as ExerciseCategory?)
+                    }
+                }
+                .pickerStyle(.menu)
+                .tint(FF.strength)
+                Spacer()
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 4)
+            .background(FF.surfaceSecondary, in: Capsule())
+
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 110), spacing: 8)], spacing: 8) {
                 ForEach(catalogSuggestions) { item in
                     Button {
                         exerciseName = item.nameJa
@@ -75,41 +99,47 @@ struct TrainingView: View {
                     } label: {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(item.nameJa)
-                                .font(.caption.bold())
                                 .lineLimit(1)
                             Text(item.category.rawValue)
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
+                                .font(.system(size: 10))
+                                .foregroundStyle(FF.textTertiary)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(FFCompactButtonStyle(tint: FF.strength, isSelected: exerciseName == item.nameJa))
                 }
             }
 
-            HStack(spacing: 12) {
-                Stepper(value: $weightKg, in: 0...300, step: 2.5) {
-                    Text("\(weightKg, specifier: "%.1f")kg")
-                        .monospacedDigit()
-                }
-                Stepper(value: $reps, in: 1...30) {
-                    Text("\(reps)回")
-                        .monospacedDigit()
-                }
-            }
+            FFStepperRow(
+                label: "重量",
+                valueText: String(format: "%.1fkg", weightKg),
+                onMinus: { weightKg = max(0, weightKg - 2.5) },
+                onPlus: { weightKg = min(300, weightKg + 2.5) }
+            )
 
-            Stepper(value: $sets, in: 1...12) {
-                Text("\(sets)セット")
-                    .monospacedDigit()
-            }
+            FFStepperRow(
+                label: "回数",
+                valueText: "\(reps)回",
+                onMinus: { reps = max(1, reps - 1) },
+                onPlus: { reps = min(30, reps + 1) }
+            )
 
-            Stepper(value: $rpe, in: 1...10) {
-                Text("きつさ RPE \(rpe)")
-                    .monospacedDigit()
-            }
+            FFStepperRow(
+                label: "セット",
+                valueText: "\(sets)セット",
+                onMinus: { sets = max(1, sets - 1) },
+                onPlus: { sets = min(12, sets + 1) }
+            )
+
+            FFStepperRow(
+                label: "きつさ RPE",
+                valueText: "\(rpe)",
+                onMinus: { rpe = max(1, rpe - 1) },
+                onPlus: { rpe = min(10, rpe + 1) }
+            )
 
             TextField("メモ 例: フォーム、疲労感、痛みなし", text: $note)
-                .textFieldStyle(.roundedBorder)
+                .ffFieldStyle()
 
             Button {
                 let saved = store.addStrengthSet(exercise: exerciseName, weightKg: weightKg, reps: reps, sets: sets, rpe: rpe, note: note)
@@ -119,56 +149,91 @@ struct TrainingView: View {
                 note = ""
             } label: {
                 Label("追加", systemImage: "plus.circle.fill")
-                    .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(FFPrimaryButtonStyle())
             .disabled(exerciseName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         }
         .panelStyle()
     }
 
+    // MARK: 重量と推定1RM
+
     private var progressPanel: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("重量と推定1RM")
-                .font(.headline)
+            SectionHeader(title: "重量と推定1RM")
+
+            HStack(spacing: 8) {
+                legendChip(color: FF.strength, label: "重量")
+                legendChip(color: FF.hyrox, label: "推定1RM")
+                Spacer()
+            }
 
             Chart {
                 ForEach(selectedSets) { set in
                     LineMark(x: .value("日付", set.date), y: .value("重量", set.weightKg))
-                        .foregroundStyle(.teal)
+                        .foregroundStyle(FF.strength)
+                        .lineStyle(StrokeStyle(lineWidth: 2.5))
                     PointMark(x: .value("日付", set.date), y: .value("1RM", set.estimatedOneRepMax))
-                        .foregroundStyle(.purple)
+                        .foregroundStyle(FF.hyrox)
                 }
             }
             .frame(height: 220)
 
             ForEach(selectedSets.reversed()) { set in
-                HStack {
-                    Text(set.exercise)
-                    Spacer()
-                    Text("\(set.weightKg, specifier: "%.1f")kg x \(set.reps) x \(set.sets)")
-                        .monospacedDigit()
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Text(set.exercise)
+                            .font(FF.fontBody)
+                            .foregroundStyle(FF.textPrimary)
+                        Spacer()
+                        Text("\(set.weightKg, specifier: "%.1f")kg x \(set.reps) x \(set.sets)")
+                            .font(.system(size: 15, weight: .semibold, design: .rounded))
+                            .monospacedDigit()
+                            .foregroundStyle(FF.strength)
+                    }
+                    if !set.note.isEmpty {
+                        Text(set.note)
+                            .font(FF.fontCaption)
+                            .foregroundStyle(FF.textSecondary)
+                    }
                 }
-                .font(.subheadline)
-                if !set.note.isEmpty {
-                    Text(set.note)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+                .padding(.vertical, 4)
             }
         }
         .panelStyle()
     }
 
-    private var reminderPanel: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("次回の判断")
-                .font(.headline)
-
-            Text(nextProgressionText)
-                .font(.body)
-                .foregroundStyle(.primary)
+    private func legendChip(color: Color, label: String) -> some View {
+        HStack(spacing: 5) {
+            Circle()
+                .fill(color)
+                .frame(width: 7, height: 7)
+            Text(label)
+                .font(FF.fontCaption.weight(.medium))
+                .foregroundStyle(FF.textSecondary)
         }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        .background(FF.surfaceSecondary, in: Capsule())
+    }
+
+    // MARK: 次回の判断
+
+    private var reminderPanel: some View {
+        HStack(alignment: .top, spacing: 12) {
+            IconSeat(systemName: "arrow.up.right", color: FF.strength)
+            VStack(alignment: .leading, spacing: 6) {
+                Text("次回の判断")
+                    .font(FF.fontSection)
+                    .foregroundStyle(FF.textPrimary)
+                Text(nextProgressionText)
+                    .font(FF.fontBody)
+                    .lineSpacing(5)
+                    .foregroundStyle(FF.textSecondary)
+            }
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .panelStyle()
     }
 

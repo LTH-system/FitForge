@@ -15,123 +15,196 @@ struct DashboardView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 18) {
-                    profilePanel
+                    heroPanel
+                    pfcPanel
                     checkInPanel
-                    dailySummary
                     calorieTrend
                     suggestions
                     healthKitPanel
                 }
                 .padding()
             }
-            .background(Color(.systemGroupedBackground))
+            .background(FF.background)
             .navigationTitle("FitForge")
             .toolbar {
                 NavigationLink {
                     SettingsView()
                 } label: {
                     Image(systemName: "gearshape")
+                        .foregroundStyle(FF.textSecondary)
                 }
             }
         }
     }
 
-    private var profilePanel: some View {
+    // MARK: - 今日のPFC合計
+
+    private var todayPFC: (protein: Int, fat: Int, carb: Int) {
+        let todayMeals = store.meals.filter {
+            LifeDayService.isSameLifeDay($0.date, .now, preferences: store.preferences)
+        }
+        return (
+            todayMeals.map(\.proteinG).reduce(0, +),
+            todayMeals.map(\.fatG).reduce(0, +),
+            todayMeals.map(\.carbG).reduce(0, +)
+        )
+    }
+
+    // MARK: - ヒーロー（残りカロリー）
+
+    private var heroPanel: some View {
+        let target = store.goal.dailyCalorieTarget
+        let intake = store.todayLedger?.intakeKcal ?? 0
+        let burn = store.todayLedger?.expenditureKcal ?? 0
+        let balance = store.todayLedger?.balanceKcal ?? 0
+        let remaining = target - intake
+        let progress = target > 0 ? Double(intake) / Double(target) : 0
         let onboarding = store.preferences.onboarding
-        return VStack(alignment: .leading, spacing: 12) {
+
+        return VStack(spacing: 16) {
             HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(onboarding.primaryGoal.rawValue)
-                        .font(.headline)
-                    Text("週 \(onboarding.weeklyWorkoutDays) 回 / 食事は\(onboarding.mealTrackingStyle.rawValue)記録 / 1日は \(store.preferences.dayStartHour):\(String(format: "%02d", store.preferences.dayStartMinute)) から")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+                FFBadge(text: onboarding.primaryGoal.rawValue, color: FF.accent)
+                FFBadge(text: "週 \(onboarding.weeklyWorkoutDays) 回ペース", color: FF.run)
                 Spacer()
-                Image(systemName: icon(for: onboarding.primaryGoal))
-                    .foregroundStyle(.teal)
-                    .font(.title2)
+                Text("目標 \(target) kcal")
+                    .font(FF.fontCaption)
+                    .monospacedDigit()
+                    .foregroundStyle(FF.textTertiary)
+            }
+
+            ZStack {
+                RingGauge(progress: progress, lineWidth: 14)
+                    .frame(width: 240, height: 240)
+
+                VStack(spacing: 4) {
+                    Text(remaining >= 0 ? "今日あと" : "目標から")
+                        .font(FF.fontCaption.weight(.medium))
+                        .foregroundStyle(FF.textSecondary)
+                    Text(remaining >= 0 ? "\(remaining)" : "+\(abs(remaining))")
+                        .font(FF.fontHero)
+                        .monospacedDigit()
+                        .foregroundStyle(remaining >= 0 ? FF.textPrimary : FF.over)
+                        .contentTransition(.numericText())
+                    Text("kcal")
+                        .font(FF.fontCaption)
+                        .foregroundStyle(FF.textTertiary)
+                }
+            }
+
+            Text(coachLine)
+                .font(FF.fontBody)
+                .lineSpacing(5)
+                .foregroundStyle(FF.textSecondary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity)
+
+            HStack(spacing: 12) {
+                MetricCard(title: "摂取", value: "\(intake)", unit: "kcal", color: FF.intake, icon: "fork.knife")
+                MetricCard(title: "消費", value: "\(burn)", unit: "kcal", color: FF.burn, icon: "flame.fill")
+                MetricCard(
+                    title: "差分",
+                    value: "\(balance)",
+                    unit: "kcal",
+                    color: balance <= 0 ? FF.deficit : FF.over,
+                    icon: "scalemass.fill"
+                )
             }
         }
         .panelStyle()
     }
 
+    private var coachLine: String {
+        store.suggestions().first?.detail ?? "今日できることを、できる分だけで大丈夫です。"
+    }
+
+    // MARK: - PFC
+
+    private var pfcPanel: some View {
+        let pfc = todayPFC
+        return VStack(alignment: .leading, spacing: 14) {
+            SectionHeader(title: "今日のPFC", subtitle: "記録した食事からの合計です")
+            PFCBars(protein: pfc.protein, fat: pfc.fat, carb: pfc.carb)
+        }
+        .panelStyle()
+    }
+
+    // MARK: - 30秒チェックイン
+
     private var checkInPanel: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("30秒チェックイン")
-                        .font(.headline)
-                    Text("完璧じゃなくて大丈夫。休む日も記録に入ります。")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
+        VStack(alignment: .leading, spacing: 14) {
+            SectionHeader(title: "30秒チェックイン", subtitle: "完璧じゃなくて大丈夫。休む日も記録に入ります。")
+
+            checkInRow("食事") {
+                FFSegmentedPicker(
+                    options: ["少なめ", "普通", "多め"],
+                    label: { $0 },
+                    selection: $mealAmount,
+                    tint: FF.intake
+                )
             }
 
-            Picker("食事", selection: $mealAmount) {
-                ForEach(["少なめ", "普通", "多め"], id: \.self) { Text($0) }
+            checkInRow("運動") {
+                FFSegmentedPicker(
+                    options: ["休んだ", "少しやった", "やった"],
+                    label: { $0 },
+                    selection: $activity,
+                    tint: FF.burn
+                )
             }
-            .pickerStyle(.segmented)
 
-            Picker("運動", selection: $activity) {
-                ForEach(["休んだ", "少しやった", "やった"], id: \.self) { Text($0) }
+            checkInRow("体調") {
+                FFSegmentedPicker(
+                    options: ["だるい", "普通", "よい"],
+                    label: { $0 },
+                    selection: $condition,
+                    tint: FF.accent
+                )
             }
-            .pickerStyle(.segmented)
 
-            HStack {
-                Picker("体調", selection: $condition) {
-                    ForEach(["だるい", "普通", "よい"], id: \.self) { Text($0) }
-                }
-                .pickerStyle(.menu)
-
-                Picker("気分", selection: $mood) {
-                    ForEach(["しんどい", "普通", "前向き"], id: \.self) { Text($0) }
-                }
-                .pickerStyle(.menu)
+            checkInRow("気分") {
+                FFSegmentedPicker(
+                    options: ["しんどい", "普通", "前向き"],
+                    label: { $0 },
+                    selection: $mood,
+                    tint: FF.protein
+                )
             }
 
             Button {
                 store.addCheckIn(mealAmount: mealAmount, activity: activity, condition: condition, mood: mood)
             } label: {
                 Label("今日はここまででOK", systemImage: "checkmark.circle.fill")
-                    .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(FFSecondaryButtonStyle())
 
             if let latest = store.checkIns.first {
                 Text("最新: 食事 \(latest.mealAmount) / 運動 \(latest.activity) / 体調 \(latest.condition)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(FF.fontCaption)
+                    .foregroundStyle(FF.textTertiary)
             }
         }
         .panelStyle()
     }
 
-    private var dailySummary: some View {
-        let ledger = store.todayLedger
-        return VStack(alignment: .leading, spacing: 14) {
-            Text("今日の収支")
-                .font(.headline)
-
-            HStack(spacing: 12) {
-                MetricCard(title: "摂取", value: "\(ledger?.intakeKcal ?? 0)", unit: "kcal", color: .orange)
-                MetricCard(title: "消費", value: "\(ledger?.expenditureKcal ?? 0)", unit: "kcal", color: .teal)
-                MetricCard(title: "差分", value: "\(ledger?.balanceKcal ?? 0)", unit: "kcal", color: (ledger?.balanceKcal ?? 0) <= 0 ? .green : .red)
-            }
+    private func checkInRow<Content: View>(_ label: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(label)
+                .font(FF.fontCaption.weight(.medium))
+                .foregroundStyle(FF.textSecondary)
+            content()
         }
-        .panelStyle()
     }
+
+    // MARK: - カロリー収支チャート
 
     private var calorieTrend: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("カロリー収支と体重")
-                    .font(.headline)
+                SectionHeader(title: "カロリー収支と体重")
                 Spacer()
                 Text("直近42日")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(FF.fontCaption)
+                    .foregroundStyle(FF.textTertiary)
             }
 
             Chart {
@@ -140,15 +213,30 @@ struct DashboardView: View {
                         x: .value("日付", ledger.date, unit: .day),
                         y: .value("収支", ledger.balanceKcal)
                     )
-                    .foregroundStyle(ledger.balanceKcal <= 0 ? .green.opacity(0.7) : .red.opacity(0.65))
+                    .foregroundStyle(ledger.balanceKcal <= 0 ? FF.deficit : FF.over)
+                    .cornerRadius(4)
                 }
 
                 ForEach(store.bodyMetrics) { metric in
+                    AreaMark(
+                        x: .value("日付", metric.date, unit: .day),
+                        y: .value("体重", metric.weightKg * 100)
+                    )
+                    .interpolationMethod(.catmullRom)
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [FF.accent.opacity(0.2), FF.accent.opacity(0)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+
                     LineMark(
                         x: .value("日付", metric.date, unit: .day),
                         y: .value("体重", metric.weightKg * 100)
                     )
-                    .foregroundStyle(.blue)
+                    .foregroundStyle(FF.accent)
+                    .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round))
                     .interpolationMethod(.catmullRom)
                 }
             }
@@ -163,56 +251,58 @@ struct DashboardView: View {
         .panelStyle()
     }
 
+    // MARK: - 行動パターン
+
     private var suggestions: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("行動パターン")
-                .font(.headline)
+            SectionHeader(title: "行動パターン")
 
             ForEach(store.suggestions()) { item in
                 HStack(alignment: .top, spacing: 12) {
-                    Text(item.priority)
-                        .font(.caption.bold())
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 5)
-                        .background(Capsule().fill(Color.teal))
+                    FFBadge(text: item.priority, color: FF.accent)
 
                     VStack(alignment: .leading, spacing: 4) {
                         Text(item.title)
-                            .font(.subheadline.bold())
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(FF.textPrimary)
                         Text(item.detail)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .font(FF.fontCaption)
+                            .lineSpacing(3)
+                            .foregroundStyle(FF.textSecondary)
                     }
-                    Spacer()
+                    Spacer(minLength: 0)
                 }
                 .padding(12)
-                .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 8))
+                .background(FF.surfaceSecondary, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             }
         }
         .panelStyle()
     }
 
+    // MARK: - HealthKit
+
     private var healthKitPanel: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                VStack(alignment: .leading) {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 12) {
+                IconSeat(systemName: "heart.fill", color: FF.protein, size: 38)
+                VStack(alignment: .leading, spacing: 2) {
                     Text("iOSヘルスケア")
-                        .font(.headline)
+                        .font(FF.fontSection)
+                        .foregroundStyle(FF.textPrimary)
                     Text(healthKit.authorizationStatusText)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .font(FF.fontCaption)
+                        .foregroundStyle(FF.textSecondary)
                 }
                 Spacer()
                 Button("連携") {
                     Task { await healthKit.requestAuthorization(preferences: store.preferences) }
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(FFCompactButtonStyle(tint: FF.accent, isSelected: true))
             }
 
             HStack(spacing: 12) {
-                MetricCard(title: "歩数", value: "\(Int(healthKit.latestStepCount))", unit: "歩", color: .blue)
-                MetricCard(title: "活動", value: "\(Int(healthKit.latestActiveEnergyKcal))", unit: "kcal", color: .pink)
+                MetricCard(title: "歩数", value: "\(Int(healthKit.latestStepCount))", unit: "歩", color: FF.carb, icon: "figure.walk")
+                MetricCard(title: "活動", value: "\(Int(healthKit.latestActiveEnergyKcal))", unit: "kcal", color: FF.burn, icon: "flame.fill")
             }
 
             Button {
@@ -245,20 +335,9 @@ struct DashboardView: View {
                 }
             } label: {
                 Label("今日のデータを同期", systemImage: "arrow.triangle.2.circlepath")
-                    .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(FFSecondaryButtonStyle(tint: FF.burn))
         }
         .panelStyle()
-    }
-
-    private func icon(for goal: PrimaryGoal) -> String {
-        switch goal {
-        case .fatLoss: "scalemass"
-        case .muscleGain: "dumbbell"
-        case .running: "figure.run"
-        case .hyrox: "figure.cross.training"
-        case .health: "heart"
-        }
     }
 }

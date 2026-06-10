@@ -29,6 +29,7 @@
 		000000000000000000000114 /* PersistentModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000216 /* PersistentModels.swift */; };
 		000000000000000000000115 /* SwiftDataBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000217 /* SwiftDataBridge.swift */; };
 		000000000000000000000116 /* MealAIAPIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000218 /* MealAIAPIClient.swift */; };
+		000000000000000000000117 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000219 /* Theme.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -57,6 +58,7 @@
 		000000000000000000000216 /* PersistentModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/PersistentModels.swift; sourceTree = "<group>"; };
 		000000000000000000000217 /* SwiftDataBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Services/SwiftDataBridge.swift; sourceTree = "<group>"; };
 		000000000000000000000218 /* MealAIAPIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Services/MealAIAPIClient.swift; sourceTree = "<group>"; };
+		000000000000000000000219 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Features/Shared/Theme.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -103,6 +105,7 @@
 				00000000000000000000020C /* GoalsView.swift */,
 				00000000000000000000020D /* SettingsView.swift */,
 				00000000000000000000020E /* Components.swift */,
+				000000000000000000000219 /* Theme.swift */,
 				00000000000000000000020F /* Info.plist */,
 				000000000000000000000210 /* FitForge.entitlements */,
 			);
@@ -208,6 +211,7 @@
 				000000000000000000000114 /* PersistentModels.swift in Sources */,
 				000000000000000000000115 /* SwiftDataBridge.swift in Sources */,
 				000000000000000000000116 /* MealAIAPIClient.swift in Sources */,
+				000000000000000000000117 /* Theme.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

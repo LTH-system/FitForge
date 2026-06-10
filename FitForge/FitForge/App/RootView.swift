@@ -23,7 +23,7 @@ struct RootView: View {
                 GoalsView()
                     .tabItem { Label("目標", systemImage: "target") }
             }
-            .tint(.teal)
+            .tint(FF.accent)
             .task {
                 SwiftDataBridge.hydrateStoreIfAvailable(store, context: modelContext)
                 SwiftDataBridge.seedIfNeeded(from: store, context: modelContext)

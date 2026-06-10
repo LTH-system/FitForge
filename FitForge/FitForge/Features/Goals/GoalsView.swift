@@ -6,10 +6,18 @@ struct GoalsView: View {
     @State private var targetWeightKg = 72.0
     @State private var dailyCalorieTarget = 2150
 
+    private var remainingKg: Double {
+        max(0, store.latestWeight - store.goal.targetWeightKg)
+    }
+
+    private var progress: Double {
+        max(0, min(1, (store.goal.currentWeightKg - store.latestWeight) / max(0.1, store.goal.currentWeightKg - store.goal.targetWeightKg)))
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 18) {
+                VStack(spacing: 12) {
                     goalPanel
                     editPanel
                     balancePanel
@@ -17,7 +25,7 @@ struct GoalsView: View {
                 }
                 .padding()
             }
-            .background(Color(.systemGroupedBackground))
+            .background(FF.background)
             .navigationTitle("目標")
             .onAppear {
                 currentWeightKg = store.latestWeight
@@ -27,41 +35,95 @@ struct GoalsView: View {
         }
     }
 
-    private var goalPanel: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("体重目標")
-                .font(.headline)
+    // MARK: 体重目標（ヒーロー）
 
-            HStack(spacing: 12) {
-                MetricCard(title: "現在", value: String(format: "%.1f", store.latestWeight), unit: "kg", color: .blue)
-                MetricCard(title: "目標", value: String(format: "%.1f", store.goal.targetWeightKg), unit: "kg", color: .teal)
-                MetricCard(title: "残り", value: String(format: "%.1f", max(0, store.latestWeight - store.goal.targetWeightKg)), unit: "kg", color: .orange)
+    private var goalPanel: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            SectionHeader(title: "体重目標")
+
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .lastTextBaseline, spacing: 6) {
+                    Text("あと")
+                        .font(FF.fontBody)
+                        .foregroundStyle(FF.textSecondary)
+                    Text(String(format: "%.1f", remainingKg))
+                        .font(FF.fontHero)
+                        .monospacedDigit()
+                        .foregroundStyle(FF.textPrimary)
+                    Text("kg")
+                        .font(FF.fontNumber)
+                        .foregroundStyle(FF.textSecondary)
+                }
+
+                gradientProgressBar
             }
 
-            ProgressView(value: max(0, min(1, (store.goal.currentWeightKg - store.latestWeight) / max(0.1, store.goal.currentWeightKg - store.goal.targetWeightKg))))
+            HStack(spacing: 12) {
+                MetricCard(
+                    title: "現在",
+                    value: String(format: "%.1f", store.latestWeight),
+                    unit: "kg",
+                    color: FF.burn,
+                    icon: "figure.stand"
+                )
+                MetricCard(
+                    title: "目標",
+                    value: String(format: "%.1f", store.goal.targetWeightKg),
+                    unit: "kg",
+                    color: FF.deficit,
+                    icon: "target"
+                )
+                MetricCard(
+                    title: "残り",
+                    value: String(format: "%.1f", remainingKg),
+                    unit: "kg",
+                    color: FF.accent,
+                    icon: "flag.checkered"
+                )
+            }
         }
         .panelStyle()
     }
 
+    private var gradientProgressBar: some View {
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                Capsule()
+                    .fill(FF.surfaceSecondary)
+                Capsule()
+                    .fill(FF.accentGradient)
+                    .frame(width: max(10, geo.size.width * progress))
+            }
+        }
+        .frame(height: 10)
+    }
+
+    // MARK: 目標を編集
+
     private var editPanel: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("目標を編集")
-                .font(.headline)
+        VStack(alignment: .leading, spacing: 14) {
+            SectionHeader(title: "目標を編集")
 
-            Stepper(value: $currentWeightKg, in: 30...200, step: 0.1) {
-                Text("現在 \(currentWeightKg, specifier: "%.1f")kg")
-                    .monospacedDigit()
-            }
+            FFStepperRow(
+                label: "現在",
+                valueText: String(format: "%.1fkg", currentWeightKg),
+                onMinus: { currentWeightKg = max(30, currentWeightKg - 0.1) },
+                onPlus: { currentWeightKg = min(200, currentWeightKg + 0.1) }
+            )
 
-            Stepper(value: $targetWeightKg, in: 30...200, step: 0.1) {
-                Text("目標 \(targetWeightKg, specifier: "%.1f")kg")
-                    .monospacedDigit()
-            }
+            FFStepperRow(
+                label: "目標",
+                valueText: String(format: "%.1fkg", targetWeightKg),
+                onMinus: { targetWeightKg = max(30, targetWeightKg - 0.1) },
+                onPlus: { targetWeightKg = min(200, targetWeightKg + 0.1) }
+            )
 
-            Stepper(value: $dailyCalorieTarget, in: 1200...5000, step: 50) {
-                Text("目標摂取 \(dailyCalorieTarget)kcal")
-                    .monospacedDigit()
-            }
+            FFStepperRow(
+                label: "目標摂取",
+                valueText: "\(dailyCalorieTarget)kcal",
+                onMinus: { dailyCalorieTarget = max(1200, dailyCalorieTarget - 50) },
+                onPlus: { dailyCalorieTarget = min(5000, dailyCalorieTarget + 50) }
+            )
 
             Button {
                 store.updateGoal(
@@ -71,17 +133,17 @@ struct GoalsView: View {
                 )
             } label: {
                 Label("保存", systemImage: "checkmark.circle.fill")
-                    .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(FFPrimaryButtonStyle())
         }
         .panelStyle()
     }
 
+    // MARK: 理論値と実績
+
     private var balancePanel: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("理論値と実績")
-                .font(.headline)
+            SectionHeader(title: "理論値と実績")
 
             ComparisonRow(label: "週次", predicted: store.predictedWeightDeltaKg(from: store.sevenDayBalance), actual: store.actualWeightDeltaKg(days: 7))
             ComparisonRow(label: "月次", predicted: store.predictedWeightDeltaKg(from: store.thirtyDayBalance), actual: store.actualWeightDeltaKg(days: 30))
@@ -90,14 +152,20 @@ struct GoalsView: View {
         .panelStyle()
     }
 
+    // MARK: 今やること
+
     private var actionPanel: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("今やること")
-                .font(.headline)
+            SectionHeader(title: "今やること")
 
             ForEach(store.suggestions()) { suggestion in
-                Label(suggestion.title, systemImage: "checkmark.circle")
-                    .font(.subheadline)
+                HStack(spacing: 10) {
+                    IconSeat(systemName: "checkmark.circle", color: FF.deficit, size: 24)
+                    Text(suggestion.title)
+                        .font(FF.fontBody)
+                        .foregroundStyle(FF.textPrimary)
+                    Spacer(minLength: 0)
+                }
             }
         }
         .panelStyle()
