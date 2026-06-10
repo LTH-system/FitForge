@@ -65,4 +65,42 @@ enum SwiftDataBridge {
         context.insert(GoalProfileEntry(goal: store.goal, onboarding: store.preferences.onboarding))
         try? context.save()
     }
+
+    // MARK: 削除（JSON側と同期して呼ぶ）
+
+    static func deleteMealEntry(id: UUID, context: ModelContext) {
+        let descriptor = FetchDescriptor<MealEntry>(predicate: #Predicate { $0.id == id })
+        if let entry = try? context.fetch(descriptor).first {
+            context.delete(entry)
+            try? context.save()
+        }
+    }
+
+    static func deleteStrengthSetEntry(id: UUID, context: ModelContext) {
+        let descriptor = FetchDescriptor<StrengthSetEntry>(predicate: #Predicate { $0.id == id })
+        if let entry = try? context.fetch(descriptor).first {
+            context.delete(entry)
+            try? context.save()
+        }
+    }
+
+    static func deleteCardioEntry(id: UUID, context: ModelContext) {
+        let descriptor = FetchDescriptor<CardioEntry>(predicate: #Predicate { $0.id == id })
+        if let entry = try? context.fetch(descriptor).first {
+            context.delete(entry)
+            try? context.save()
+        }
+    }
+
+    /// SwiftDataを全消去してstoreの現在内容で再シードする（デモデータ投入・全削除用）
+    static func resetAndSeed(from store: AppStore, context: ModelContext) {
+        try? context.delete(model: MealEntry.self)
+        try? context.delete(model: StrengthSetEntry.self)
+        try? context.delete(model: CardioEntry.self)
+        try? context.delete(model: BodyMetricEntry.self)
+        try? context.delete(model: DailyHealthSummaryEntry.self)
+        try? context.delete(model: GoalProfileEntry.self)
+        try? context.save()
+        seedIfNeeded(from: store, context: context)
+    }
 }

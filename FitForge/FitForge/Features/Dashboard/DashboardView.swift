@@ -10,12 +10,15 @@ struct DashboardView: View {
     @State private var activity = "少しやった"
     @State private var condition = "普通"
     @State private var mood = "前向き"
+    @State private var weightInput = 0.0
+    @State private var weightLogged = false
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 18) {
                     heroPanel
+                    weightPanel
                     pfcPanel
                     checkInPanel
                     calorieTrend
@@ -37,26 +40,16 @@ struct DashboardView: View {
         }
     }
 
-    // MARK: - 今日のPFC合計
-
-    private var todayPFC: (protein: Int, fat: Int, carb: Int) {
-        let todayMeals = store.meals.filter {
-            LifeDayService.isSameLifeDay($0.date, .now, preferences: store.preferences)
-        }
-        return (
-            todayMeals.map(\.proteinG).reduce(0, +),
-            todayMeals.map(\.fatG).reduce(0, +),
-            todayMeals.map(\.carbG).reduce(0, +)
-        )
-    }
-
     // MARK: - ヒーロー（残りカロリー）
 
     private var heroPanel: some View {
         let target = store.goal.dailyCalorieTarget
-        let intake = store.todayLedger?.intakeKcal ?? 0
-        let burn = store.todayLedger?.expenditureKcal ?? 0
-        let balance = store.todayLedger?.balanceKcal ?? 0
+        // 摂取は食事記録から直接計算する（台帳経由だと未同期日にズレる）
+        let intake = store.todayIntakeKcal
+        let measuredBurn = store.todayLedger?.expenditureKcal ?? 0
+        let burn = measuredBurn > 0 ? measuredBurn : store.estimatedMaintenanceKcal
+        let isBurnEstimated = measuredBurn <= 0
+        let balance = intake - burn
         let remaining = target - intake
         let progress = target > 0 ? Double(intake) / Double(target) : 0
         let onboarding = store.preferences.onboarding
@@ -100,7 +93,13 @@ struct DashboardView: View {
 
             HStack(spacing: 12) {
                 MetricCard(title: "摂取", value: "\(intake)", unit: "kcal", color: FF.intake, icon: "fork.knife")
-                MetricCard(title: "消費", value: "\(burn)", unit: "kcal", color: FF.burn, icon: "flame.fill")
+                MetricCard(
+                    title: isBurnEstimated ? "消費(推定)" : "消費",
+                    value: "\(burn)",
+                    unit: "kcal",
+                    color: FF.burn,
+                    icon: "flame.fill"
+                )
                 MetricCard(
                     title: "差分",
                     value: "\(balance)",
@@ -113,6 +112,46 @@ struct DashboardView: View {
         .panelStyle()
     }
 
+    // MARK: - 体重クイック記録
+
+    private var weightPanel: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                SectionHeader(title: "今日の体重", subtitle: "毎日同じタイミングで測ると変化が見えます")
+                Spacer()
+                if weightLogged {
+                    FFBadge(text: "記録済み", color: FF.deficit)
+                }
+            }
+
+            HStack(spacing: 12) {
+                FFStepperRow(
+                    label: "",
+                    valueText: String(format: "%.1fkg", weightInput),
+                    onMinus: { weightInput = max(30, weightInput - 0.1) },
+                    onPlus: { weightInput = min(200, weightInput + 0.1) }
+                )
+
+                Button("記録") {
+                    store.logWeight(weightInput)
+                    modelContext.insert(BodyMetricEntry(from: BodyMetric(date: .now, weightKg: weightInput, bodyFatPercent: nil)))
+                    try? modelContext.save()
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                        weightLogged = true
+                    }
+                }
+                .buttonStyle(FFCompactButtonStyle(tint: FF.accent, isSelected: true))
+            }
+        }
+        .panelStyle()
+        .onAppear {
+            if weightInput == 0 { weightInput = store.latestWeight }
+            weightLogged = store.bodyMetrics.contains {
+                LifeDayService.isSameLifeDay($0.date, .now, preferences: store.preferences)
+            }
+        }
+    }
+
     private var coachLine: String {
         store.suggestions().first?.detail ?? "今日できることを、できる分だけで大丈夫です。"
     }
@@ -120,10 +159,18 @@ struct DashboardView: View {
     // MARK: - PFC
 
     private var pfcPanel: some View {
-        let pfc = todayPFC
+        let pfc = store.todayPFC
         return VStack(alignment: .leading, spacing: 14) {
-            SectionHeader(title: "今日のPFC", subtitle: "記録した食事からの合計です")
-            PFCBars(protein: pfc.protein, fat: pfc.fat, carb: pfc.carb)
+            SectionHeader(
+                title: "今日のPFC",
+                subtitle: "タンパク質目標 \(store.proteinTargetG)g（体重×1.6gの目安）"
+            )
+            PFCBars(
+                protein: pfc.protein,
+                fat: pfc.fat,
+                carb: pfc.carb,
+                proteinMax: Double(store.proteinTargetG)
+            )
         }
         .panelStyle()
     }
@@ -207,13 +254,25 @@ struct DashboardView: View {
                     .foregroundStyle(FF.textTertiary)
             }
 
+            if store.ledgers.isEmpty && store.bodyMetrics.count < 2 {
+                VStack(spacing: 8) {
+                    Image(systemName: "chart.line.uptrend.xyaxis")
+                        .font(.system(size: 28))
+                        .foregroundStyle(FF.textTertiary)
+                    Text("食事と体重を記録すると、ここに推移が表示されます")
+                        .font(FF.fontCaption)
+                        .foregroundStyle(FF.textSecondary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 40)
+            } else {
             Chart {
                 ForEach(store.ledgers) { ledger in
                     BarMark(
                         x: .value("日付", ledger.date, unit: .day),
-                        y: .value("収支", ledger.balanceKcal)
+                        y: .value("収支", store.dailyBalanceKcal(for: ledger))
                     )
-                    .foregroundStyle(ledger.balanceKcal <= 0 ? FF.deficit : FF.over)
+                    .foregroundStyle(store.dailyBalanceKcal(for: ledger) <= 0 ? FF.deficit : FF.over)
                     .cornerRadius(4)
                 }
 
@@ -241,6 +300,7 @@ struct DashboardView: View {
                 }
             }
             .frame(height: 220)
+            }
 
             HStack(spacing: 12) {
                 DeltaCard(title: "週次理論", kg: store.predictedWeightDeltaKg(from: store.sevenDayBalance))

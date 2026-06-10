@@ -65,7 +65,15 @@ struct MealsView: View {
                         .foregroundStyle(FF.textSecondary)
                 }
             }
-            PFCBars(protein: todayTotals.protein, fat: todayTotals.fat, carb: todayTotals.carb)
+            PFCBars(
+                protein: todayTotals.protein,
+                fat: todayTotals.fat,
+                carb: todayTotals.carb,
+                proteinMax: Double(store.proteinTargetG)
+            )
+            Text("タンパク質目標 \(store.proteinTargetG)g（体重×1.6gの目安）")
+                .font(FF.fontCaption)
+                .foregroundStyle(FF.textTertiary)
         }
         .panelStyle()
     }
@@ -222,7 +230,20 @@ struct MealsView: View {
 
     private var recentMeals: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SectionHeader(title: "最近の食事")
+            SectionHeader(title: "最近の食事", subtitle: store.meals.isEmpty ? nil : "長押しで削除できます")
+
+            if store.meals.isEmpty {
+                VStack(spacing: 8) {
+                    Image(systemName: "fork.knife.circle")
+                        .font(.system(size: 28))
+                        .foregroundStyle(FF.textTertiary)
+                    Text("まだ記録がありません。最初の食事を記録してみましょう")
+                        .font(FF.fontCaption)
+                        .foregroundStyle(FF.textSecondary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 24)
+            }
 
             ForEach(store.meals) { meal in
                 VStack(alignment: .leading, spacing: 10) {
@@ -248,6 +269,14 @@ struct MealsView: View {
                 }
                 .padding(12)
                 .background(FF.surfaceSecondary.opacity(0.6), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .contextMenu {
+                    Button(role: .destructive) {
+                        store.deleteMeal(meal)
+                        SwiftDataBridge.deleteMealEntry(id: meal.id, context: modelContext)
+                    } label: {
+                        Label("この記録を削除", systemImage: "trash")
+                    }
+                }
             }
         }
         .panelStyle()

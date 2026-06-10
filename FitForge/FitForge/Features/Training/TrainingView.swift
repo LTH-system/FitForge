@@ -44,7 +44,18 @@ struct TrainingView: View {
             }
             .background(FF.background)
             .navigationTitle("筋トレ")
+            .onAppear { prefillFromLastSet() }
+            .onChange(of: exerciseName) { prefillFromLastSet() }
         }
+    }
+
+    /// 種目を切り替えたら前回の重量・回数・セットをプリフィルする
+    private func prefillFromLastSet() {
+        guard let last = store.latestSet(for: exerciseName) else { return }
+        weightKg = last.weightKg
+        reps = last.reps
+        sets = last.sets
+        rpe = last.rpe ?? 8
     }
 
     // MARK: 種目選択（カプセル包み）
@@ -72,6 +83,23 @@ struct TrainingView: View {
 
             TextField("種目名", text: $exerciseName)
                 .ffFieldStyle()
+
+            // ジムで一番見たい情報: この種目の前回記録と自己ベスト
+            if let last = store.latestSet(for: exerciseName) {
+                HStack(spacing: 8) {
+                    IconSeat(systemName: "clock.arrow.circlepath", color: FF.strength, size: 24)
+                    Text("前回 \(last.weightKg.formatted())kg × \(last.reps)回 × \(last.sets)セット")
+                        .font(.system(size: 14, weight: .semibold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(FF.textPrimary)
+                    Spacer()
+                    if let best = store.personalBestWeight(for: exerciseName) {
+                        FFBadge(text: "ベスト \(best.formatted())kg", color: FF.strength)
+                    }
+                }
+                .padding(10)
+                .background(FF.strength.opacity(0.08), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            }
 
             HStack(spacing: 8) {
                 Text("部位")
@@ -160,7 +188,21 @@ struct TrainingView: View {
 
     private var progressPanel: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SectionHeader(title: "重量と推定1RM")
+            SectionHeader(title: "重量と推定1RM", subtitle: selectedSets.isEmpty ? nil : "記録は長押しで削除できます")
+
+            if selectedSets.isEmpty {
+                VStack(spacing: 8) {
+                    Image(systemName: "dumbbell")
+                        .font(.system(size: 28))
+                        .foregroundStyle(FF.textTertiary)
+                    Text("\(selectedExercise) の記録はまだありません。1セット目から伸びが見えます")
+                        .font(FF.fontCaption)
+                        .foregroundStyle(FF.textSecondary)
+                        .multilineTextAlignment(.center)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 24)
+            } else {
 
             HStack(spacing: 8) {
                 legendChip(color: FF.strength, label: "重量")
@@ -198,6 +240,16 @@ struct TrainingView: View {
                     }
                 }
                 .padding(.vertical, 4)
+                .contentShape(Rectangle())
+                .contextMenu {
+                    Button(role: .destructive) {
+                        store.deleteStrengthSet(set)
+                        SwiftDataBridge.deleteStrengthSetEntry(id: set.id, context: modelContext)
+                    } label: {
+                        Label("この記録を削除", systemImage: "trash")
+                    }
+                }
+            }
             }
         }
         .panelStyle()

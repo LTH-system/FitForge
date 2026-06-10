@@ -133,7 +133,20 @@ struct CardioView: View {
 
     private var recentPanel: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SectionHeader(title: "最近の記録")
+            SectionHeader(title: "最近の記録", subtitle: store.cardioSessions.isEmpty ? nil : "長押しで削除できます")
+
+            if store.cardioSessions.isEmpty {
+                VStack(spacing: 8) {
+                    Image(systemName: "figure.run.circle")
+                        .font(.system(size: 28))
+                        .foregroundStyle(FF.textTertiary)
+                    Text("まだ記録がありません。今日の運動から始めましょう")
+                        .font(FF.fontCaption)
+                        .foregroundStyle(FF.textSecondary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 24)
+            }
 
             ForEach(store.cardioSessions) { session in
                 HStack(alignment: .top, spacing: 12) {
@@ -161,6 +174,14 @@ struct CardioView: View {
                 }
                 .padding(12)
                 .background(FF.surfaceSecondary.opacity(0.6), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .contextMenu {
+                    Button(role: .destructive) {
+                        store.deleteCardioSession(session)
+                        SwiftDataBridge.deleteCardioEntry(id: session.id, context: modelContext)
+                    } label: {
+                        Label("この記録を削除", systemImage: "trash")
+                    }
+                }
             }
         }
         .panelStyle()

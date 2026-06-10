@@ -1,9 +1,7 @@
 import Foundation
 
+/// 設定画面の「デモデータを読み込む」専用。新規ユーザーの初期状態には使わない
 enum SampleData {
-    static let goal = AppStore.defaultGoal
-    static let preferences = UserPreferences.japaneseDefault
-
     static let bodyMetrics: [BodyMetric] = {
         (0..<42).map { offset -> BodyMetric in
             let daysBack = -41 + offset

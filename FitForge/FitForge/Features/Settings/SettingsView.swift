@@ -9,6 +9,7 @@ struct SettingsView: View {
     @State private var dayStartHour = 5
     @State private var dayStartMinute = 0
     @State private var mealAIEndpointURLString = ""
+    @State private var showEraseConfirm = false
 
     var body: some View {
         ScrollView {
@@ -17,6 +18,7 @@ struct SettingsView: View {
                 lifeDayPanel
                 healthKitPanel
                 connectionPanel
+                dataPanel
                 trustPanel
             }
             .padding()
@@ -175,6 +177,43 @@ struct SettingsView: View {
             infoRow("sparkles", "食事テキスト解析AI")
             infoRow("applewatch", "Apple Watchワークアウト")
             infoRow("figure.outdoor.cycle", "Garmin / Strava")
+        }
+        .panelStyle()
+    }
+
+    // MARK: データ管理
+
+    private var dataPanel: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            SectionHeader(title: "データ管理", subtitle: "記録はこの端末にのみ保存されています")
+
+            Button {
+                store.loadDemoData()
+                SwiftDataBridge.resetAndSeed(from: store, context: modelContext)
+            } label: {
+                Label("デモデータを読み込む", systemImage: "wand.and.stars")
+            }
+            .buttonStyle(FFSecondaryButtonStyle())
+
+            Button {
+                showEraseConfirm = true
+            } label: {
+                Label("記録をすべて削除", systemImage: "trash")
+            }
+            .buttonStyle(FFSecondaryButtonStyle(tint: FF.destructive))
+            .confirmationDialog(
+                "すべての記録を削除しますか？",
+                isPresented: $showEraseConfirm,
+                titleVisibility: .visible
+            ) {
+                Button("削除する", role: .destructive) {
+                    store.eraseAllRecords()
+                    SwiftDataBridge.resetAndSeed(from: store, context: modelContext)
+                }
+                Button("やめる", role: .cancel) {}
+            } message: {
+                Text("食事・筋トレ・運動・体重・チェックインの記録が消えます。この操作は取り消せません。")
+            }
         }
         .panelStyle()
     }

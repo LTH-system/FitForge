@@ -22,14 +22,15 @@ final class AppStore: ObservableObject {
             goal = snapshot.goal
             preferences = snapshot.preferences
         } else {
-            bodyMetrics = SampleData.bodyMetrics
-            ledgers = SampleData.ledgers
-            meals = SampleData.meals
-            strengthSets = SampleData.strengthSets
-            cardioSessions = SampleData.cardioSessions
-            checkIns = SampleData.checkIns
-            goal = SampleData.goal
-            preferences = SampleData.preferences
+            // 新規ユーザーはゼロから開始する。デモデータは設定画面から明示的に投入する。
+            bodyMetrics = []
+            ledgers = []
+            meals = []
+            strengthSets = []
+            cardioSessions = []
+            checkIns = []
+            goal = AppStore.defaultGoal
+            preferences = .japaneseDefault
         }
     }
 
@@ -81,7 +82,40 @@ final class AppStore: ObservableObject {
             .filter { LifeDayService.isSameLifeDay($0.date, .now, preferences: preferences) }
             .sorted { $0.date > $1.date }
             .first
-            ?? ledgers.sorted { $0.date > $1.date }.first
+    }
+
+    // MARK: 今日のサマリー（食事記録を正とする）
+
+    var todayMeals: [MealLog] {
+        meals.filter { LifeDayService.isSameLifeDay($0.date, .now, preferences: preferences) }
+    }
+
+    var todayIntakeKcal: Int {
+        todayMeals.map(\.estimatedKcal).reduce(0, +)
+    }
+
+    var todayPFC: (protein: Int, fat: Int, carb: Int) {
+        (
+            todayMeals.map(\.proteinG).reduce(0, +),
+            todayMeals.map(\.fatG).reduce(0, +),
+            todayMeals.map(\.carbG).reduce(0, +)
+        )
+    }
+
+    /// タンパク質の1日目標(g)。体重×1.6gの目安
+    var proteinTargetG: Int {
+        max(60, Int(latestWeight * 1.6))
+    }
+
+    /// 体重から推定した1日の総消費カロリー目安。HealthKitデータがない日のフォールバック
+    var estimatedMaintenanceKcal: Int {
+        Int(latestWeight * 33)
+    }
+
+    /// 消費実測がない日は推定維持カロリーで収支を出す
+    func dailyBalanceKcal(for ledger: CalorieLedger) -> Int {
+        let expenditure = ledger.expenditureKcal > 0 ? ledger.expenditureKcal : estimatedMaintenanceKcal
+        return ledger.intakeKcal - expenditure
     }
 
     var latestWeight: Double {
@@ -90,12 +124,12 @@ final class AppStore: ObservableObject {
 
     var sevenDayBalance: Int {
         let interval = LifeDayService.recentLifeDayInterval(days: 7, preferences: preferences)
-        return ledgers.filter { interval.contains($0.date) }.map(\.balanceKcal).reduce(0, +)
+        return ledgers.filter { interval.contains($0.date) }.map { dailyBalanceKcal(for: $0) }.reduce(0, +)
     }
 
     var thirtyDayBalance: Int {
         let interval = LifeDayService.recentLifeDayInterval(days: 30, preferences: preferences)
-        return ledgers.filter { interval.contains($0.date) }.map(\.balanceKcal).reduce(0, +)
+        return ledgers.filter { interval.contains($0.date) }.map { dailyBalanceKcal(for: $0) }.reduce(0, +)
     }
 
     func predictedWeightDeltaKg(from calorieBalance: Int) -> Double {
@@ -152,6 +186,67 @@ final class AppStore: ObservableObject {
         return session
     }
 
+    // MARK: 削除
+
+    func deleteMeal(_ meal: MealLog) {
+        meals.removeAll { $0.id == meal.id }
+        if let index = ledgers.firstIndex(where: { LifeDayService.isSameLifeDay($0.date, meal.date, preferences: preferences) }) {
+            ledgers[index].intakeKcal = max(0, ledgers[index].intakeKcal - meal.estimatedKcal)
+        }
+        save()
+    }
+
+    func deleteStrengthSet(_ set: StrengthSet) {
+        strengthSets.removeAll { $0.id == set.id }
+        save()
+    }
+
+    func deleteCardioSession(_ session: CardioSession) {
+        cardioSessions.removeAll { $0.id == session.id }
+        save()
+    }
+
+    // MARK: 体重クイック記録
+
+    func logWeight(_ kg: Double) {
+        bodyMetrics.append(BodyMetric(date: .now, weightKg: kg, bodyFatPercent: nil))
+        save()
+    }
+
+    // MARK: 筋トレ支援
+
+    /// 指定種目の最新記録。「前回何kgだったか」をジムで見るための核
+    func latestSet(for exercise: String) -> StrengthSet? {
+        strengthSets.filter { $0.exercise == exercise }.max { $0.date < $1.date }
+    }
+
+    /// 指定種目の自己ベスト重量
+    func personalBestWeight(for exercise: String) -> Double? {
+        strengthSets.filter { $0.exercise == exercise }.map(\.weightKg).max()
+    }
+
+    // MARK: デモデータ / 全削除
+
+    func loadDemoData() {
+        bodyMetrics = SampleData.bodyMetrics
+        ledgers = SampleData.ledgers
+        meals = SampleData.meals
+        strengthSets = SampleData.strengthSets
+        cardioSessions = SampleData.cardioSessions
+        checkIns = SampleData.checkIns
+        save()
+    }
+
+    func eraseAllRecords() {
+        bodyMetrics = []
+        ledgers = []
+        meals = []
+        strengthSets = []
+        cardioSessions = []
+        checkIns = []
+        save()
+    }
+
     func updateGoal(currentWeightKg: Double, targetWeightKg: Double, dailyCalorieTarget: Int) {
         goal.currentWeightKg = currentWeightKg
         goal.targetWeightKg = targetWeightKg
@@ -173,8 +268,18 @@ final class AppStore: ObservableObject {
     }
 
     private func upsertTodayIntake(byAdding kcal: Int) {
-        guard let index = ledgers.indices.last(where: { LifeDayService.isSameLifeDay(ledgers[$0].date, .now, preferences: preferences) }) ?? ledgers.indices.last else { return }
-        ledgers[index].intakeKcal += kcal
+        if let index = ledgers.firstIndex(where: { LifeDayService.isSameLifeDay($0.date, .now, preferences: preferences) }) {
+            ledgers[index].intakeKcal = max(0, ledgers[index].intakeKcal + kcal)
+        } else if kcal > 0 {
+            // 今日の台帳がなければ作る。他の日の台帳に加算してはいけない
+            ledgers.append(CalorieLedger(
+                date: LifeDayService.startOfLifeDay(containing: .now, preferences: preferences),
+                intakeKcal: kcal,
+                activeKcal: 0,
+                basalKcal: 0
+            ))
+            ledgers.sort { $0.date < $1.date }
+        }
     }
 
     func updatePreferences(languageCode: String, dayStartHour: Int, dayStartMinute: Int) {
@@ -285,24 +390,27 @@ final class AppStore: ObservableObject {
 
         items.append(primaryGoalSuggestion())
 
-        if sevenDayBalance > 0 {
-            items.append(ActionSuggestion(
-                title: "今週は収支がプラス",
-                detail: "週次で \(sevenDayBalance) kcal。夕食の脂質を少し抑えるか、有酸素を2回足すと目標ペースに戻しやすいです。",
-                priority: "高"
-            ))
-        } else {
-            items.append(ActionSuggestion(
-                title: "減量ペースは良好",
-                detail: "週次で \(abs(sevenDayBalance)) kcal の赤字。筋トレ重量が落ちない範囲でこのペースを維持しましょう。",
-                priority: "中"
-            ))
+        // 収支コメントは記録がある場合のみ（初日に「収支ゼロで良好」と出すのは不自然）
+        if !ledgers.isEmpty {
+            if sevenDayBalance > 0 {
+                items.append(ActionSuggestion(
+                    title: "今週は収支がプラス気味",
+                    detail: "週次で約 \(sevenDayBalance) kcal（推定込み）。夕食の脂質を少し抑えるか、有酸素を2回足すと目標ペースに戻しやすいです。",
+                    priority: "高"
+                ))
+            } else {
+                items.append(ActionSuggestion(
+                    title: "減量ペースは良好",
+                    detail: "週次で約 \(abs(sevenDayBalance)) kcal の赤字（推定込み）。筋トレ重量が落ちない範囲でこのペースを維持しましょう。",
+                    priority: "中"
+                ))
+            }
         }
 
-        if let bench = strengthSets.filter({ $0.exercise == "ベンチプレス" }).max(by: { $0.date < $1.date }), bench.reps >= 8 {
+        if let candidate = strengthSets.filter({ $0.reps >= 8 }).max(by: { $0.date < $1.date }) {
             items.append(ActionSuggestion(
-                title: "ベンチプレス増量候補",
-                detail: "\(Int(bench.weightKg))kg x \(bench.reps)回を達成。次回は +2.5kg で6回以上を狙うタイミングです。",
+                title: "\(candidate.exercise) 増量候補",
+                detail: "\(candidate.weightKg.formatted())kg x \(candidate.reps)回を達成。次回は +2.5kg で6回以上を狙うタイミングです。",
                 priority: "中"
             ))
         }
