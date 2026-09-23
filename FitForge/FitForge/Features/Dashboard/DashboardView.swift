@@ -46,9 +46,8 @@ struct DashboardView: View {
         let target = store.goal.dailyCalorieTarget
         // 摂取は食事記録から直接計算する（台帳経由だと未同期日にズレる）
         let intake = store.todayIntakeKcal
-        let measuredBurn = store.todayLedger?.expenditureKcal ?? 0
-        let burn = measuredBurn > 0 ? measuredBurn : store.estimatedMaintenanceKcal
-        let isBurnEstimated = measuredBurn <= 0
+        let burn = store.expenditureKcal(for: .now)
+        let isBurnEstimated = store.isExpenditureEstimated(for: .now)
         let balance = intake - burn
         let remaining = target - intake
         let progress = target > 0 ? Double(intake) / Double(target) : 0

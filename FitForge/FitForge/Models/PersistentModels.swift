@@ -181,6 +181,7 @@ final class DailyHealthSummaryEntry {
             intakeKcal: intakeKcal,
             activeKcal: activeKcal,
             basalKcal: basalKcal,
+            stepCount: stepCount,
             source: DataSource(rawValue: sourceRaw) ?? .manual
         )
     }

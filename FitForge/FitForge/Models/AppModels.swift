@@ -67,10 +67,32 @@ struct CalorieLedger: Identifiable, Hashable, Codable {
     var intakeKcal: Int
     var activeKcal: Int
     var basalKcal: Int
+    var stepCount: Int
     var source: DataSource = .manual
 
     var expenditureKcal: Int { activeKcal + basalKcal }
     var balanceKcal: Int { intakeKcal - expenditureKcal }
+
+    init(id: UUID = UUID(), date: Date, intakeKcal: Int, activeKcal: Int, basalKcal: Int, stepCount: Int = 0, source: DataSource = .manual) {
+        self.id = id
+        self.date = date
+        self.intakeKcal = intakeKcal
+        self.activeKcal = activeKcal
+        self.basalKcal = basalKcal
+        self.stepCount = stepCount
+        self.source = source
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+        date = try container.decode(Date.self, forKey: .date)
+        intakeKcal = try container.decode(Int.self, forKey: .intakeKcal)
+        activeKcal = try container.decode(Int.self, forKey: .activeKcal)
+        basalKcal = try container.decode(Int.self, forKey: .basalKcal)
+        stepCount = try container.decodeIfPresent(Int.self, forKey: .stepCount) ?? 0
+        source = try container.decodeIfPresent(DataSource.self, forKey: .source) ?? .manual
+    }
 }
 
 struct MealLog: Identifiable, Hashable, Codable {

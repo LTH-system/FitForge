@@ -19,7 +19,8 @@ enum SampleData {
             let date = Calendar.current.date(byAdding: .day, value: daysBack, to: .now) ?? .now
             let intake = 2050 + (offset % 6) * 80
             let active = 420 + (offset % 4) * 55
-            return CalorieLedger(date: date, intakeKcal: intake, activeKcal: active, basalKcal: 1680)
+            let steps = 6_500 + (offset % 5) * 1_200
+            return CalorieLedger(date: date, intakeKcal: intake, activeKcal: active, basalKcal: 1680, stepCount: steps)
         }
     }()
 

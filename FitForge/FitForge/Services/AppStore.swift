@@ -112,10 +112,54 @@ final class AppStore: ObservableObject {
         Int(latestWeight * 33)
     }
 
-    /// 消費実測がない日は推定維持カロリーで収支を出す
+    /// 基礎代謝のみのフォールバック推定（体重×22kcal）。歩数・運動由来のカロリーは別途加算するため活動分は含めない
+    private var estimatedBasalKcal: Int {
+        Int(latestWeight * 22)
+    }
+
+    /// 1歩あたりの推定消費カロリー係数(体重1kgあたり)。10,000歩・体重70kgでおよそ300kcal程度になる目安
+    private let stepKcalPerKgPerStep = 0.0005
+
+    /// ランニング等の手入力記録1kmあたりの推定歩数。歩数由来カロリーとの二重計上を避けるために差し引く
+    private let cardioStepsPerKm = 1000.0
+
+    private func cardioTotals(on date: Date) -> (kcal: Int, distanceKm: Double) {
+        let sessions = cardioSessions.filter { LifeDayService.isSameLifeDay($0.date, date, preferences: preferences) }
+        return (sessions.map(\.calories).reduce(0, +), sessions.map(\.distanceKm).reduce(0, +))
+    }
+
+    /// 歩数から推定した消費カロリー。ランニング等ですでに手入力済みの距離分の歩数は除外し、二重計上を防ぐ
+    private func stepsKcal(stepCount: Int, excludingRunKm: Double) -> Int {
+        let runSteps = excludingRunKm * cardioStepsPerKm
+        let neatSteps = max(0, Double(stepCount) - runSteps)
+        return Int(neatSteps * latestWeight * stepKcalPerKgPerStep)
+    }
+
+    private func ledger(on date: Date) -> CalorieLedger? {
+        ledgers.first { LifeDayService.isSameLifeDay($0.date, date, preferences: preferences) }
+    }
+
+    /// その日の消費カロリー。基礎代謝(HealthKit実測 or 推定) + 歩数由来の活動カロリー + 手入力の筋トレ/有酸素記録を合算する
+    func expenditureKcal(for date: Date) -> Int {
+        let cardio = cardioTotals(on: date)
+
+        guard let ledger = ledger(on: date), ledger.basalKcal > 0 || ledger.stepCount > 0 else {
+            return estimatedMaintenanceKcal + cardio.kcal
+        }
+
+        let basal = ledger.basalKcal > 0 ? ledger.basalKcal : estimatedBasalKcal
+        let steps = stepsKcal(stepCount: ledger.stepCount, excludingRunKm: cardio.distanceKm)
+        return basal + steps + cardio.kcal
+    }
+
+    /// HealthKitの実測データがなく、体重ベースの推定値にフォールバックしているかどうか
+    func isExpenditureEstimated(for date: Date) -> Bool {
+        guard let ledger = ledger(on: date) else { return true }
+        return ledger.basalKcal <= 0 && ledger.stepCount <= 0
+    }
+
     func dailyBalanceKcal(for ledger: CalorieLedger) -> Int {
-        let expenditure = ledger.expenditureKcal > 0 ? ledger.expenditureKcal : estimatedMaintenanceKcal
-        return ledger.intakeKcal - expenditure
+        ledger.intakeKcal - expenditureKcal(for: ledger.date)
     }
 
     var latestWeight: Double {
@@ -301,6 +345,7 @@ final class AppStore: ObservableObject {
             intakeKcal: todayLedger?.intakeKcal ?? 0,
             activeKcal: activeKcal,
             basalKcal: basalKcal,
+            stepCount: stepCount,
             source: .healthKit
         )
 
@@ -345,6 +390,7 @@ final class AppStore: ObservableObject {
                 intakeKcal: existingIntake,
                 activeKcal: summary.activeKcal,
                 basalKcal: summary.basalKcal,
+                stepCount: summary.stepCount,
                 source: .healthKit
             )
 
