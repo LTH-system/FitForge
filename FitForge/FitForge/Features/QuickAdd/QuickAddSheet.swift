@@ -123,10 +123,47 @@ struct QuickAddSheet: View {
 
     // MARK: いつもの
 
+    private var yesterdayMeals: [MealLog] {
+        let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: .now) ?? .now
+        return store.meals(onLifeDay: yesterday)
+    }
+
     private var usualMeals: some View {
         let meals = store.frequentMeals(limit: 4)
         return VStack(alignment: .leading, spacing: 8) {
             SectionHeader(title: "いつもの", subtitle: meals.isEmpty ? "食事を記録すると、よく食べるものがここに並びます" : "1タップで今の時刻に記録します")
+
+            if !yesterdayMeals.isEmpty {
+                let yesterdayKcal = yesterdayMeals.map(\.estimatedKcal).reduce(0, +)
+                Button {
+                    let saved = store.repeatYesterdayMeals()
+                    for meal in saved {
+                        modelContext.insert(MealEntry(from: meal))
+                    }
+                    try? modelContext.save()
+                    markSaved("昨日の食事\(saved.count)件")
+                } label: {
+                    HStack(spacing: 12) {
+                        IconSeat(systemName: "calendar.badge.clock", color: FF.accent, size: 36)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("昨日の食事をまとめて記録")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(FF.textPrimary)
+                            Text("\(yesterdayMeals.count)件・\(yesterdayKcal) kcal を各時間帯の目安時刻で追加")
+                                .font(FF.fontCaption)
+                                .monospacedDigit()
+                                .foregroundStyle(FF.textSecondary)
+                        }
+                        Spacer(minLength: 0)
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 22))
+                            .foregroundStyle(FF.accentText)
+                    }
+                    .padding(10)
+                    .background(FF.accentSoft, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                }
+                .buttonStyle(.plain)
+            }
 
             if let justSavedTitle {
                 Label("\(justSavedTitle) を記録しました", systemImage: "checkmark.circle.fill")

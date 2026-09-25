@@ -95,6 +95,35 @@ struct CalorieLedger: Identifiable, Hashable, Codable {
     }
 }
 
+enum MealPeriod: String, Codable, CaseIterable, Identifiable {
+    case breakfast = "朝食"
+    case lunch = "昼食"
+    case snack = "間食"
+    case dinner = "夕食"
+
+    var id: String { rawValue }
+
+    /// 記録時刻から時間帯を推定する。〜10:59 朝食、11:00〜14:59 昼食、15:00〜16:59 間食、17:00〜 夕食
+    static func inferred(from date: Date, calendar: Calendar = .current) -> MealPeriod {
+        switch calendar.component(.hour, from: date) {
+        case ..<11: .breakfast
+        case 11..<15: .lunch
+        case 15..<17: .snack
+        default: .dinner
+        }
+    }
+
+    /// 過去の日に記録するときの目安時刻
+    var representativeHour: Int {
+        switch self {
+        case .breakfast: 8
+        case .lunch: 12
+        case .snack: 15
+        case .dinner: 19
+        }
+    }
+}
+
 struct MealLog: Identifiable, Hashable, Codable {
     var id = UUID()
     var date: Date
@@ -106,6 +135,40 @@ struct MealLog: Identifiable, Hashable, Codable {
     var carbG: Int
     var confidence: Double
     var source: DataSource = .ai
+    var period: MealPeriod
+
+    init(
+        id: UUID = UUID(), date: Date, title: String, note: String,
+        estimatedKcal: Int, proteinG: Int, fatG: Int, carbG: Int,
+        confidence: Double, source: DataSource = .ai, period: MealPeriod? = nil
+    ) {
+        self.id = id
+        self.date = date
+        self.title = title
+        self.note = note
+        self.estimatedKcal = estimatedKcal
+        self.proteinG = proteinG
+        self.fatG = fatG
+        self.carbG = carbG
+        self.confidence = confidence
+        self.source = source
+        self.period = period ?? MealPeriod.inferred(from: date)
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+        date = try container.decode(Date.self, forKey: .date)
+        title = try container.decode(String.self, forKey: .title)
+        note = try container.decode(String.self, forKey: .note)
+        estimatedKcal = try container.decode(Int.self, forKey: .estimatedKcal)
+        proteinG = try container.decode(Int.self, forKey: .proteinG)
+        fatG = try container.decode(Int.self, forKey: .fatG)
+        carbG = try container.decode(Int.self, forKey: .carbG)
+        confidence = try container.decode(Double.self, forKey: .confidence)
+        source = try container.decodeIfPresent(DataSource.self, forKey: .source) ?? .ai
+        period = try container.decodeIfPresent(MealPeriod.self, forKey: .period) ?? MealPeriod.inferred(from: date)
+    }
 }
 
 struct DailyNutrition: Identifiable, Hashable {
@@ -126,6 +189,11 @@ struct DailyNutrition: Identifiable, Hashable {
         let protein = Int((p / total * 100).rounded())
         let fat = Int((f / total * 100).rounded())
         return (protein, fat, 100 - protein - fat)
+    }
+
+    /// 時間帯ごとの食事。MealPeriod.allCasesの順に並ぶ
+    func meals(in period: MealPeriod) -> [MealLog] {
+        meals.filter { $0.period == period }.sorted { $0.date < $1.date }
     }
 }
 

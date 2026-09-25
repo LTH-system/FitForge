@@ -131,6 +131,31 @@ final class AppStore: ObservableObject {
         ))
     }
 
+    /// 前日の食事をまとめて今日に複製する。時間帯は保つが、時刻は各時間帯の目安時刻にする
+    @discardableResult
+    func repeatYesterdayMeals() -> [MealLog] {
+        let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: .now) ?? .now
+        let source = meals(onLifeDay: yesterday)
+        guard !source.isEmpty else { return [] }
+
+        let today = LifeDayService.startOfLifeDay(containing: .now, preferences: preferences)
+        return source.map { meal in
+            let date = Calendar.current.date(bySettingHour: meal.period.representativeHour, minute: 0, second: 0, of: today) ?? .now
+            return addMeal(from: MealLog(
+                date: date,
+                title: meal.title,
+                note: meal.note,
+                estimatedKcal: meal.estimatedKcal,
+                proteinG: meal.proteinG,
+                fatG: meal.fatG,
+                carbG: meal.carbG,
+                confidence: meal.confidence,
+                source: .manual,
+                period: meal.period
+            ))
+        }
+    }
+
     /// 食事記録のある生活日を新しい順に返す
     func recordedNutritionDays(limit: Int) -> [DailyNutrition] {
         let grouped = Dictionary(grouping: meals) {
@@ -284,9 +309,16 @@ final class AppStore: ObservableObject {
     @discardableResult
     func addMeal(from analysis: MealLog) -> MealLog {
         meals.insert(analysis, at: 0)
-        upsertTodayIntake(byAdding: analysis.estimatedKcal)
+        upsertIntake(onLifeDay: analysis.date, byAdding: analysis.estimatedKcal)
         save()
         return analysis
+    }
+
+    /// 保存済みの食事の時間帯をあとから変更する
+    func updateMealPeriod(_ meal: MealLog, to period: MealPeriod) {
+        guard let index = meals.firstIndex(where: { $0.id == meal.id }) else { return }
+        meals[index].period = period
+        save()
     }
 
     @discardableResult
@@ -326,9 +358,7 @@ final class AppStore: ObservableObject {
 
     func deleteMeal(_ meal: MealLog) {
         meals.removeAll { $0.id == meal.id }
-        if let index = ledgers.firstIndex(where: { LifeDayService.isSameLifeDay($0.date, meal.date, preferences: preferences) }) {
-            ledgers[index].intakeKcal = max(0, ledgers[index].intakeKcal - meal.estimatedKcal)
-        }
+        upsertIntake(onLifeDay: meal.date, byAdding: -meal.estimatedKcal)
         save()
     }
 
@@ -418,13 +448,14 @@ final class AppStore: ObservableObject {
         save()
     }
 
-    private func upsertTodayIntake(byAdding kcal: Int) {
-        if let index = ledgers.firstIndex(where: { LifeDayService.isSameLifeDay($0.date, .now, preferences: preferences) }) {
+    /// 食事の追加・削除に合わせて、その食事があった生活日の台帳の摂取カロリーを増減する
+    private func upsertIntake(onLifeDay date: Date, byAdding kcal: Int) {
+        if let index = ledgers.firstIndex(where: { LifeDayService.isSameLifeDay($0.date, date, preferences: preferences) }) {
             ledgers[index].intakeKcal = max(0, ledgers[index].intakeKcal + kcal)
         } else if kcal > 0 {
-            // 今日の台帳がなければ作る。他の日の台帳に加算してはいけない
+            // その日の台帳がなければ作る。他の日の台帳に加算してはいけない
             ledgers.append(CalorieLedger(
-                date: LifeDayService.startOfLifeDay(containing: .now, preferences: preferences),
+                date: LifeDayService.startOfLifeDay(containing: date, preferences: preferences),
                 intakeKcal: kcal,
                 activeKcal: 0,
                 basalKcal: 0

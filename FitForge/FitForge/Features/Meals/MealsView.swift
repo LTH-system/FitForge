@@ -14,6 +14,8 @@ struct MealsView: View {
     @State private var editableCarb = 0
     /// 表示中の生活日（その日に含まれる任意の時刻）
     @State private var selectedDay = Date.now
+    /// これから記録する食事の時間帯。日を切り替えるたびに目安の時間帯へリセットする
+    @State private var selectedPeriod = MealPeriod.inferred(from: .now)
     @State private var savedCount = 0
     private let ai = MealAIService()
     private static let topAnchor = "mealsTop"
@@ -26,6 +28,13 @@ struct MealsView: View {
         store.nutrition(onLifeDay: selectedDay)
     }
 
+    /// 新しく記録する食事に付ける日時。今日はその瞬間の時刻、過去の日は選んだ時間帯の目安時刻
+    private var entryDate: Date {
+        guard !isViewingToday else { return .now }
+        let dayStart = LifeDayService.startOfLifeDay(containing: selectedDay, preferences: store.preferences)
+        return Calendar.current.date(bySettingHour: selectedPeriod.representativeHour, minute: 0, second: 0, of: dayStart) ?? selectedDay
+    }
+
     var body: some View {
         NavigationStack {
             ScrollViewReader { proxy in
@@ -34,14 +43,15 @@ struct MealsView: View {
                         dayNavigator
                             .id(Self.topAnchor)
                         dayPanel
-                        if isViewingToday {
-                            if store.preferences.onboarding.mealTrackingStyle == .loose {
-                                looseMealPanel
-                            }
-                            inputPanel
-                            if pendingMeal != nil {
-                                confirmationPanel
-                            }
+                        if !isViewingToday {
+                            periodPickerPanel
+                        }
+                        if isViewingToday && store.preferences.onboarding.mealTrackingStyle == .loose {
+                            looseMealPanel
+                        }
+                        inputPanel
+                        if pendingMeal != nil {
+                            confirmationPanel
                         }
                         dayMealsPanel
                         historyPanel { day in
@@ -57,6 +67,11 @@ struct MealsView: View {
             .background(FF.background)
             .navigationTitle("食事管理")
             .sensoryFeedback(.success, trigger: savedCount)
+            .onChange(of: selectedDay) { _, newDay in
+                selectedPeriod = LifeDayService.isSameLifeDay(newDay, .now, preferences: store.preferences)
+                    ? MealPeriod.inferred(from: .now)
+                    : .breakfast
+            }
         }
     }
 
@@ -180,6 +195,16 @@ struct MealsView: View {
         .panelStyle()
     }
 
+    // MARK: 過去の日に記録する時間帯
+
+    private var periodPickerPanel: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            SectionHeader(title: "この日のどの時間帯に記録しますか？")
+            FFSegmentedPicker(options: Array(MealPeriod.allCases), label: { $0.rawValue }, selection: $selectedPeriod, tint: FF.intake)
+        }
+        .panelStyle()
+    }
+
     // MARK: ざっくり記録
 
     private var looseMealPanel: some View {
@@ -198,7 +223,7 @@ struct MealsView: View {
     private func quickMealButton(title: String, kcal: Int, protein: Int, fat: Int, carb: Int) -> some View {
         Button {
             let meal = MealLog(
-                date: .now,
+                date: entryDate,
                 title: "\(title)の食事",
                 note: "ざっくり記録",
                 estimatedKcal: kcal,
@@ -206,7 +231,8 @@ struct MealsView: View {
                 fatG: fat,
                 carbG: carb,
                 confidence: 0.45,
-                source: .manual
+                source: .manual,
+                period: isViewingToday ? nil : selectedPeriod
             )
             let saved = store.addMeal(from: meal)
             modelContext.insert(MealEntry(from: saved))
@@ -229,7 +255,10 @@ struct MealsView: View {
 
     private var inputPanel: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SectionHeader(title: store.preferences.onboarding.mealTrackingStyle == .detailed ? "AIカロリー推定" : "詳しく記録")
+            SectionHeader(
+                title: store.preferences.onboarding.mealTrackingStyle == .detailed ? "AIカロリー推定" : "詳しく記録",
+                subtitle: isViewingToday ? nil : "\(dayTitle(selectedDay))・\(selectedPeriod.rawValue)として記録します"
+            )
 
             TextField("例: 鶏むね200g、玄米150g、卵、味噌汁", text: $description, axis: .vertical)
                 .lineLimit(3...6)
@@ -329,7 +358,7 @@ struct MealsView: View {
         .buttonStyle(.plain)
     }
 
-    // MARK: 選択日の食事
+    // MARK: 選択日の食事（時間帯ごと）
 
     private var dayMealsPanel: some View {
         let dayMeals = selectedNutrition.meals
@@ -337,7 +366,7 @@ struct MealsView: View {
         return VStack(alignment: .leading, spacing: 12) {
             SectionHeader(
                 title: isViewingToday ? "今日の食事" : "この日の食事",
-                subtitle: dayMeals.isEmpty ? nil : "長押しで削除できます"
+                subtitle: dayMeals.isEmpty ? nil : "長押しで削除・時間帯の変更ができます"
             )
 
             if dayMeals.isEmpty {
@@ -353,45 +382,87 @@ struct MealsView: View {
                 .padding(.vertical, 24)
             }
 
-            ForEach(dayMeals) { meal in
-                VStack(alignment: .leading, spacing: 10) {
-                    HStack(spacing: 8) {
-                        Text(meal.date.formatted(date: .omitted, time: .shortened))
-                            .font(FF.fontCaption)
-                            .monospacedDigit()
-                            .foregroundStyle(FF.textSecondary)
-                        Text(meal.title)
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(FF.textPrimary)
-                        if meal.confidence < 0.6 {
-                            FFBadge(text: "目安", color: FF.over)
-                        }
-                        Spacer()
-                        Text("\(meal.estimatedKcal) kcal")
-                            .font(.system(size: 15, weight: .semibold, design: .rounded))
-                            .monospacedDigit()
-                            .foregroundStyle(FF.intake)
-                    }
-                    if !meal.note.isEmpty {
-                        Text(meal.note)
-                            .font(FF.fontCaption)
-                            .foregroundStyle(FF.textSecondary)
-                    }
-                    PFCRow(protein: meal.proteinG, fat: meal.fatG, carb: meal.carbG)
-                }
-                .padding(12)
-                .background(FF.surfaceSecondary.opacity(0.6), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                .contextMenu {
-                    Button(role: .destructive) {
-                        store.deleteMeal(meal)
-                        SwiftDataBridge.deleteMealEntry(id: meal.id, context: modelContext)
-                    } label: {
-                        Label("この記録を削除", systemImage: "trash")
-                    }
+            ForEach(MealPeriod.allCases) { period in
+                let periodMeals = selectedNutrition.meals(in: period)
+                if !periodMeals.isEmpty {
+                    periodSection(period, meals: periodMeals)
                 }
             }
         }
         .panelStyle()
+    }
+
+    private func periodSection(_ period: MealPeriod, meals: [MealLog]) -> some View {
+        let subtotal = meals.map(\.estimatedKcal).reduce(0, +)
+
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(period.rawValue)
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(FF.textPrimary)
+                Spacer()
+                Text("\(subtotal) kcal")
+                    .font(FF.fontCaption)
+                    .monospacedDigit()
+                    .foregroundStyle(FF.textSecondary)
+            }
+
+            ForEach(meals) { meal in
+                mealRow(meal)
+            }
+        }
+    }
+
+    private func mealRow(_ meal: MealLog) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Text(meal.date.formatted(date: .omitted, time: .shortened))
+                    .font(FF.fontCaption)
+                    .monospacedDigit()
+                    .foregroundStyle(FF.textSecondary)
+                Text(meal.title)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(FF.textPrimary)
+                if meal.confidence < 0.6 {
+                    FFBadge(text: "目安", color: FF.over)
+                }
+                Spacer()
+                Text("\(meal.estimatedKcal) kcal")
+                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(FF.intake)
+            }
+            if !meal.note.isEmpty {
+                Text(meal.note)
+                    .font(FF.fontCaption)
+                    .foregroundStyle(FF.textSecondary)
+            }
+            PFCRow(protein: meal.proteinG, fat: meal.fatG, carb: meal.carbG)
+        }
+        .padding(12)
+        .background(FF.surfaceSecondary.opacity(0.6), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .contextMenu {
+            Menu {
+                ForEach(MealPeriod.allCases.filter { $0 != meal.period }) { period in
+                    Button(period.rawValue) {
+                        store.updateMealPeriod(meal, to: period)
+                        SwiftDataBridge.deleteMealEntry(id: meal.id, context: modelContext)
+                        var moved = meal
+                        moved.period = period
+                        modelContext.insert(MealEntry(from: moved))
+                        try? modelContext.save()
+                    }
+                }
+            } label: {
+                Label("時間帯を変更", systemImage: "clock")
+            }
+            Button(role: .destructive) {
+                store.deleteMeal(meal)
+                SwiftDataBridge.deleteMealEntry(id: meal.id, context: modelContext)
+            } label: {
+                Label("この記録を削除", systemImage: "trash")
+            }
+        }
     }
 
     // MARK: 過去の記録（日別一覧）
@@ -482,6 +553,8 @@ struct MealsView: View {
         meal.proteinG = editableProtein
         meal.fatG = editableFat
         meal.carbG = editableCarb
+        meal.date = entryDate
+        if !isViewingToday { meal.period = selectedPeriod }
         let saved = store.addMeal(from: meal)
         modelContext.insert(MealEntry(from: saved))
         try? modelContext.save()

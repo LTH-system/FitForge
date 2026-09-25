@@ -13,6 +13,7 @@ final class MealEntry {
     var carbG: Int
     var confidence: Double
     var sourceRaw: String
+    var periodRaw: String = ""
 
     init(from log: MealLog) {
         id = log.id
@@ -25,6 +26,7 @@ final class MealEntry {
         carbG = log.carbG
         confidence = log.confidence
         sourceRaw = log.source.rawValue
+        periodRaw = log.period.rawValue
     }
 
     var mealLog: MealLog {
@@ -38,7 +40,8 @@ final class MealEntry {
             fatG: fatG,
             carbG: carbG,
             confidence: confidence,
-            source: DataSource(rawValue: sourceRaw) ?? .manual
+            source: DataSource(rawValue: sourceRaw) ?? .manual,
+            period: MealPeriod(rawValue: periodRaw)
         )
     }
 }
