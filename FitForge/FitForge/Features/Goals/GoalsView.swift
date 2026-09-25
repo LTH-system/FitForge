@@ -127,7 +127,7 @@ struct GoalsView: View {
                 }
             }
 
-            MilestoneTrack(milestones: milestones, progress: progress)
+            MilestoneTrack(milestones: milestones, start: start, target: target, progress: progress)
                 .frame(height: 52)
 
             HStack(spacing: 8) {
@@ -136,7 +136,7 @@ struct GoalsView: View {
                     .foregroundStyle(FF.accent)
                 Group {
                     if let nextMilestone {
-                        Text("次の節目 \(nextMilestone, specifier: "%.0f")kg まであと \(abs(latest - nextMilestone), specifier: "%.1f")kg")
+                        Text("次の節目 \(nextMilestone.formatted(.number.precision(.fractionLength(0...1))))kg まであと \(abs(latest - nextMilestone), specifier: "%.1f")kg")
                     } else {
                         Text("ゴールまであと少しです")
                     }
@@ -336,14 +336,21 @@ struct GoalsView: View {
 
 private struct MilestoneTrack: View {
     var milestones: [Double]
+    var start: Double
+    var target: Double
     var progress: Double
+
+    /// スタートからゴールまでのうち、その体重がどこにあたるか(0...1)
+    private func fraction(of value: Double) -> Double {
+        let total = start - target
+        guard abs(total) > 0.05 else { return 1 }
+        return max(0, min(1, (start - value) / total))
+    }
 
     var body: some View {
         GeometryReader { geo in
             let inset: CGFloat = 10
             let width = geo.size.width - inset * 2
-            let count = max(1, milestones.count - 1)
-            let position = { (index: Int) -> CGFloat in inset + width * CGFloat(index) / CGFloat(count) }
             let currentX = inset + width * progress
 
             ZStack(alignment: .topLeading) {
@@ -357,7 +364,7 @@ private struct MilestoneTrack: View {
                     .offset(x: inset, y: 11)
 
                 ForEach(Array(milestones.enumerated()), id: \.offset) { index, value in
-                    let x = position(index)
+                    let x = inset + width * fraction(of: value)
                     let isGoal = index == milestones.count - 1
                     let isPassed = x <= currentX + 0.5
                     Circle()
