@@ -10,10 +10,13 @@ struct SettingsView: View {
     @State private var dayStartMinute = 0
     @State private var mealAIEndpointURLString = ""
     @State private var showEraseConfirm = false
+    @State private var isEditingBody = false
+    @State private var isEditingGoal = false
 
     var body: some View {
         ScrollView {
             VStack(spacing: 12) {
+                profilePanel
                 languagePanel
                 lifeDayPanel
                 healthKitPanel
@@ -24,12 +27,57 @@ struct SettingsView: View {
             .padding()
         }
         .background(FF.background)
-        .navigationTitle(L10n.text("settings", languageCode: store.preferences.languageCode))
+        .navigationTitle("マイページ")
+        .sheet(isPresented: $isEditingBody) {
+            BodyProfileEditorView()
+                .presentationDetents([.medium, .large])
+        }
+        .sheet(isPresented: $isEditingGoal) {
+            GoalEditorView()
+                .presentationDetents([.medium])
+        }
         .onAppear {
             selectedLanguage = store.preferences.languageCode
             dayStartHour = store.preferences.dayStartHour
             dayStartMinute = store.preferences.dayStartMinute
             mealAIEndpointURLString = store.preferences.mealAIEndpointURLString
+        }
+    }
+
+    // MARK: プロフィール
+
+    private var profilePanel: some View {
+        let profile = store.preferences.bodyProfile
+        let plan = store.budgetPlan
+
+        return VStack(alignment: .leading, spacing: 12) {
+            SectionHeader(title: "プロフィール", subtitle: "1日の予算の計算に使います")
+
+            profileRow("からだ", profile.map { "\($0.sex.rawValue)・\($0.age())歳・\(Int($0.heightCm))cm" } ?? "未入力")
+            profileRow("運動する回数", "週 \(store.preferences.onboarding.weeklyWorkoutDays) 回")
+            profileRow("目標体重", String(format: "%.1fkg（%@）", store.goal.targetWeightKg, store.goal.pace.label))
+            profileRow("基礎代謝 / 1日の予算", "\(plan.basalKcal) / \(plan.budgetKcal) kcal")
+
+            HStack(spacing: 10) {
+                Button("からだの情報を変更") { isEditingBody = true }
+                    .buttonStyle(FFSecondaryButtonStyle())
+                Button("目標体重を変更") { isEditingGoal = true }
+                    .buttonStyle(FFSecondaryButtonStyle())
+            }
+        }
+        .panelStyle()
+    }
+
+    private func profileRow(_ label: String, _ value: String) -> some View {
+        HStack {
+            Text(label)
+                .font(FF.fontBody)
+                .foregroundStyle(FF.textSecondary)
+            Spacer()
+            Text(value)
+                .font(.system(size: 15, weight: .semibold))
+                .monospacedDigit()
+                .foregroundStyle(FF.textPrimary)
         }
     }
 

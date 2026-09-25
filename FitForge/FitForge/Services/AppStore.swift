@@ -103,6 +103,34 @@ final class AppStore: ObservableObject {
         )
     }
 
+    /// よく記録する食事。同じ食事名の記録回数が多い順、同数なら新しい順
+    func frequentMeals(limit: Int) -> [MealLog] {
+        Dictionary(grouping: meals, by: \.title)
+            .compactMap { _, logs -> (latest: MealLog, count: Int)? in
+                guard let latest = logs.max(by: { $0.date < $1.date }) else { return nil }
+                return (latest, logs.count)
+            }
+            .sorted { $0.count != $1.count ? $0.count > $1.count : $0.latest.date > $1.latest.date }
+            .prefix(limit)
+            .map(\.latest)
+    }
+
+    /// 過去の食事を今の時刻でもう一度記録する
+    @discardableResult
+    func repeatMeal(_ meal: MealLog) -> MealLog {
+        addMeal(from: MealLog(
+            date: .now,
+            title: meal.title,
+            note: meal.note,
+            estimatedKcal: meal.estimatedKcal,
+            proteinG: meal.proteinG,
+            fatG: meal.fatG,
+            carbG: meal.carbG,
+            confidence: meal.confidence,
+            source: .manual
+        ))
+    }
+
     /// 食事記録のある生活日を新しい順に返す
     func recordedNutritionDays(limit: Int) -> [DailyNutrition] {
         let grouped = Dictionary(grouping: meals) {

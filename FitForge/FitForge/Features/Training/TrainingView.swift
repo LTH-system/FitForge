@@ -32,21 +32,18 @@ struct TrainingView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(spacing: 12) {
-                    exercisePickerCapsule
-                    inputPanel
-                    progressPanel
-                    reminderPanel
-                }
-                .padding()
+        ScrollView {
+            VStack(spacing: 12) {
+                exercisePickerCapsule
+                inputPanel
+                progressPanel
+                reminderPanel
             }
-            .background(FF.background)
-            .navigationTitle("筋トレ")
-            .onAppear { prefillFromLastSet() }
-            .onChange(of: exerciseName) { prefillFromLastSet() }
+            .padding()
         }
+        .background(FF.background)
+        .onAppear { prefillFromLastSet() }
+        .onChange(of: exerciseName) { prefillFromLastSet() }
     }
 
     /// 種目を切り替えたら前回の重量・回数・セットをプリフィルする

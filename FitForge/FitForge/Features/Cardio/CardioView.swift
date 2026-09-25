@@ -15,18 +15,15 @@ struct CardioView: View {
     private let sessionTypes = ["easy", "tempo", "interval", "long", "race", "hyrox"]
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(spacing: 12) {
-                    inputPanel
-                    summaryPanel
-                    recentPanel
-                }
-                .padding()
+        ScrollView {
+            VStack(spacing: 12) {
+                inputPanel
+                summaryPanel
+                recentPanel
             }
-            .background(FF.background)
-            .navigationTitle("運動")
+            .padding()
         }
+        .background(FF.background)
     }
 
     // MARK: 記録を追加
