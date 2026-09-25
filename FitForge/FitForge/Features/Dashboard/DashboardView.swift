@@ -43,7 +43,7 @@ struct DashboardView: View {
     // MARK: - ヒーロー（残りカロリー）
 
     private var heroPanel: some View {
-        let target = store.goal.dailyCalorieTarget
+        let target = store.dailyCalorieBudget
         // 摂取は食事記録から直接計算する（台帳経由だと未同期日にズレる）
         let intake = store.todayIntakeKcal
         let burn = store.expenditureKcal(for: .now)

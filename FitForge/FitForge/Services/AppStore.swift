@@ -132,14 +132,53 @@ final class AppStore: ObservableObject {
         max(60, Int(latestWeight * 1.6))
     }
 
-    /// 体重から推定した1日の総消費カロリー目安。HealthKitデータがない日のフォールバック
-    var estimatedMaintenanceKcal: Int {
-        Int(latestWeight * 33)
+    // MARK: 目標から逆算した予算
+
+    /// 当日を除く直近14日の、HealthKitで丸1日分取れた基礎代謝
+    private var recentHealthKitBasalKcal: [Int] {
+        let todayStart = LifeDayService.startOfLifeDay(containing: .now, preferences: preferences)
+        guard let windowStart = Calendar.current.date(byAdding: .day, value: -14, to: todayStart) else { return [] }
+        return ledgers
+            .filter { $0.source == .healthKit && $0.date >= windowStart && $0.date < todayStart }
+            .map(\.basalKcal)
     }
 
-    /// 基礎代謝のみのフォールバック推定（体重×22kcal）。歩数・運動由来のカロリーは別途加算するため活動分は含めない
+    var budgetPlan: BudgetPlan {
+        budgetPlan(for: goal.pace)
+    }
+
+    func budgetPlan(for pace: WeightPace) -> BudgetPlan {
+        BudgetCalculator.plan(
+            currentWeightKg: latestWeight,
+            targetWeightKg: goal.targetWeightKg,
+            pace: pace,
+            weeklyWorkoutDays: preferences.onboarding.weeklyWorkoutDays,
+            profile: preferences.bodyProfile,
+            recentBasalKcal: recentHealthKitBasalKcal
+        )
+    }
+
+    var dailyCalorieBudget: Int {
+        budgetPlan.budgetKcal
+    }
+
+    /// 保存済みの目標にも最新の予算と到着予定日を反映する（週次ふりかえり等で過去の値を参照するため）
+    private func syncGoalWithBudget() {
+        let plan = budgetPlan
+        goal.dailyCalorieTarget = plan.budgetKcal
+        if let arrival = plan.arrivalDate {
+            goal.deadline = arrival
+        }
+    }
+
+    /// HealthKitデータがない日の1日の総消費カロリー目安（基礎代謝×活動係数）
+    var estimatedMaintenanceKcal: Int {
+        budgetPlan.maintenanceKcal
+    }
+
+    /// 基礎代謝のみの推定。歩数・運動由来のカロリーは別途加算するため活動分は含めない
     private var estimatedBasalKcal: Int {
-        Int(latestWeight * 22)
+        BudgetCalculator.basal(weightKg: latestWeight, profile: preferences.bodyProfile, recentBasalKcal: []).kcal
     }
 
     /// 1歩あたりの推定消費カロリー係数(体重1kgあたり)。10,000歩・体重70kgでおよそ300kcal程度になる目安
@@ -279,6 +318,7 @@ final class AppStore: ObservableObject {
 
     func logWeight(_ kg: Double) {
         bodyMetrics.append(BodyMetric(date: .now, weightKg: kg, bodyFatPercent: nil))
+        syncGoalWithBudget()
         save()
     }
 
@@ -316,12 +356,26 @@ final class AppStore: ObservableObject {
         save()
     }
 
-    func updateGoal(currentWeightKg: Double, targetWeightKg: Double, dailyCalorieTarget: Int) {
+    func updateGoal(currentWeightKg: Double, targetWeightKg: Double, pace: WeightPace) {
         goal.currentWeightKg = currentWeightKg
         goal.targetWeightKg = targetWeightKg
-        goal.dailyCalorieTarget = dailyCalorieTarget
+        goal.pace = pace
 
         bodyMetrics.append(BodyMetric(date: .now, weightKg: currentWeightKg, bodyFatPercent: nil))
+        syncGoalWithBudget()
+        save()
+    }
+
+    func updatePace(_ pace: WeightPace) {
+        goal.pace = pace
+        syncGoalWithBudget()
+        save()
+    }
+
+    func updateBodyProfile(_ profile: BodyProfile, weeklyWorkoutDays: Int) {
+        preferences.bodyProfile = profile
+        preferences.onboarding.weeklyWorkoutDays = weeklyWorkoutDays
+        syncGoalWithBudget()
         save()
     }
 
@@ -388,7 +442,6 @@ final class AppStore: ObservableObject {
                 waistCm: nil,
                 source: .healthKit
             ))
-            goal.currentWeightKg = bodyMassKg
         }
 
         if checkIns.first(where: { LifeDayService.isSameLifeDay($0.date, today, preferences: preferences) }) == nil {
@@ -401,6 +454,7 @@ final class AppStore: ObservableObject {
             ), at: 0)
         }
 
+        syncGoalWithBudget()
         save()
     }
 
@@ -429,6 +483,7 @@ final class AppStore: ObservableObject {
         }
 
         ledgers.sort { $0.date < $1.date }
+        syncGoalWithBudget()
         save()
     }
 
@@ -439,10 +494,14 @@ final class AppStore: ObservableObject {
         dayStartHour: Int,
         dayStartMinute: Int,
         weeklyWorkoutDays: Int,
-        mealTrackingStyle: MealTrackingStyle
+        mealTrackingStyle: MealTrackingStyle,
+        bodyProfile: BodyProfile,
+        pace: WeightPace
     ) {
         goal.currentWeightKg = currentWeightKg
         goal.targetWeightKg = targetWeightKg
+        goal.pace = pace
+        preferences.bodyProfile = bodyProfile
         preferences.dayStartHour = dayStartHour
         preferences.dayStartMinute = dayStartMinute
         preferences.onboarding = OnboardingProfile(
@@ -453,6 +512,7 @@ final class AppStore: ObservableObject {
             createdAt: .now
         )
         bodyMetrics.append(BodyMetric(date: .now, weightKg: currentWeightKg, bodyFatPercent: nil))
+        syncGoalWithBudget()
         save()
     }
 

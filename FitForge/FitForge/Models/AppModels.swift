@@ -166,13 +166,74 @@ struct CardioSession: Identifiable, Hashable, Codable {
     }
 }
 
+enum WeightPace: String, Codable, CaseIterable, Identifiable {
+    case slow
+    case standard
+    case fast
+
+    var id: String { rawValue }
+
+    var kgPerWeek: Double {
+        switch self {
+        case .slow: 0.25
+        case .standard: 0.4
+        case .fast: 0.5
+        }
+    }
+
+    var label: String {
+        switch self {
+        case .slow: "ゆっくり"
+        case .standard: "標準"
+        case .fast: "しっかり"
+        }
+    }
+}
+
 struct GoalPlan: Hashable, Codable {
+    /// 目標を設定した時点の体重（道のりのスタート地点）。最新体重は AppStore.latestWeight を使う
     var currentWeightKg: Double
     var targetWeightKg: Double
     var deadline: Date
     var dailyCalorieTarget: Int
+    var pace: WeightPace
 
     var remainingKg: Double { currentWeightKg - targetWeightKg }
+
+    init(currentWeightKg: Double, targetWeightKg: Double, deadline: Date, dailyCalorieTarget: Int, pace: WeightPace = .standard) {
+        self.currentWeightKg = currentWeightKg
+        self.targetWeightKg = targetWeightKg
+        self.deadline = deadline
+        self.dailyCalorieTarget = dailyCalorieTarget
+        self.pace = pace
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        currentWeightKg = try container.decode(Double.self, forKey: .currentWeightKg)
+        targetWeightKg = try container.decode(Double.self, forKey: .targetWeightKg)
+        deadline = try container.decode(Date.self, forKey: .deadline)
+        dailyCalorieTarget = try container.decode(Int.self, forKey: .dailyCalorieTarget)
+        pace = try container.decodeIfPresent(WeightPace.self, forKey: .pace) ?? .standard
+    }
+}
+
+enum BiologicalSex: String, Codable, CaseIterable, Identifiable {
+    case male = "男性"
+    case female = "女性"
+
+    var id: String { rawValue }
+}
+
+/// 基礎代謝の計算に使う身体情報
+struct BodyProfile: Hashable, Codable {
+    var sex: BiologicalSex
+    var birthYear: Int
+    var heightCm: Double
+
+    func age(on date: Date = .now, calendar: Calendar = .current) -> Int {
+        max(0, calendar.component(.year, from: date) - birthYear)
+    }
 }
 
 struct UserPreferences: Hashable, Codable {
@@ -181,6 +242,8 @@ struct UserPreferences: Hashable, Codable {
     var dayStartMinute: Int
     var onboarding: OnboardingProfile
     var mealAIEndpointURLString: String
+    /// 未入力の既存ユーザーはnil。入力を促し、それまでは体重ベースで推定する
+    var bodyProfile: BodyProfile?
 
     static let japaneseDefault = UserPreferences(
         languageCode: "ja",
@@ -190,12 +253,13 @@ struct UserPreferences: Hashable, Codable {
         mealAIEndpointURLString: ""
     )
 
-    init(languageCode: String, dayStartHour: Int, dayStartMinute: Int, onboarding: OnboardingProfile, mealAIEndpointURLString: String = "") {
+    init(languageCode: String, dayStartHour: Int, dayStartMinute: Int, onboarding: OnboardingProfile, mealAIEndpointURLString: String = "", bodyProfile: BodyProfile? = nil) {
         self.languageCode = languageCode
         self.dayStartHour = dayStartHour
         self.dayStartMinute = dayStartMinute
         self.onboarding = onboarding
         self.mealAIEndpointURLString = mealAIEndpointURLString
+        self.bodyProfile = bodyProfile
     }
 
     init(from decoder: Decoder) throws {
@@ -205,6 +269,7 @@ struct UserPreferences: Hashable, Codable {
         dayStartMinute = try container.decodeIfPresent(Int.self, forKey: .dayStartMinute) ?? 0
         onboarding = try container.decodeIfPresent(OnboardingProfile.self, forKey: .onboarding) ?? .initial
         mealAIEndpointURLString = try container.decodeIfPresent(String.self, forKey: .mealAIEndpointURLString) ?? ""
+        bodyProfile = try container.decodeIfPresent(BodyProfile.self, forKey: .bodyProfile)
     }
 }
 

@@ -112,7 +112,7 @@ struct MealsView: View {
 
     private var dayPanel: some View {
         let day = selectedNutrition
-        let target = store.goal.dailyCalorieTarget
+        let target = store.dailyCalorieBudget
         let proteinTarget = store.proteinTargetG
 
         return VStack(alignment: .leading, spacing: 14) {

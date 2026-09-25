@@ -20,7 +20,7 @@ struct RootView: View {
                 CardioView()
                     .tabItem { Label("運動", systemImage: "figure.run") }
 
-                GoalsView()
+                NavigationStack { GoalsView() }
                     .tabItem { Label("目標", systemImage: "target") }
             }
             .tint(FF.accent)
