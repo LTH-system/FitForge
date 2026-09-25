@@ -14,6 +14,7 @@ struct MealsView: View {
     @State private var editableCarb = 0
     /// 表示中の生活日（その日に含まれる任意の時刻）
     @State private var selectedDay = Date.now
+    @State private var savedCount = 0
     private let ai = MealAIService()
     private static let topAnchor = "mealsTop"
 
@@ -55,6 +56,7 @@ struct MealsView: View {
             }
             .background(FF.background)
             .navigationTitle("食事管理")
+            .sensoryFeedback(.success, trigger: savedCount)
         }
     }
 
@@ -209,6 +211,7 @@ struct MealsView: View {
             let saved = store.addMeal(from: meal)
             modelContext.insert(MealEntry(from: saved))
             try? modelContext.save()
+            savedCount += 1
         } label: {
             VStack(spacing: 4) {
                 Text(title)
@@ -484,5 +487,6 @@ struct MealsView: View {
         try? modelContext.save()
         pendingMeal = nil
         description = ""
+        savedCount += 1
     }
 }

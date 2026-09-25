@@ -369,36 +369,52 @@ extension View {
     }
 }
 
-// MARK: - リングゲージ（ダッシュボードのヒーロー）
+// MARK: - 3重リング（ホームのヒーロー）
 
-struct RingGauge: View {
-    /// 0...1
+struct RingSpec: Identifiable {
+    var id: String { label }
+    var label: String
+    /// 0以上。1で1周
     var progress: Double
-    var lineWidth: CGFloat = 12
-    @State private var animated = false
+    var color: Color
+}
+
+/// 外側から順に描く同心円のリング。表示時と値の変化時にアニメーションする
+struct ActivityRings: View {
+    var rings: [RingSpec]
+    var lineWidth: CGFloat = 14
+    var spacing: CGFloat = 4
+    @State private var appeared = false
 
     var body: some View {
-        ZStack {
-            Circle()
-                .stroke(FF.surfaceSecondary, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
-            Circle()
-                .trim(from: 0, to: animated ? min(1, max(0, progress)) : 0)
-                .stroke(
-                    AngularGradient(
-                        colors: [FF.gradientStart, FF.gradientEnd],
-                        center: .center,
-                        startAngle: .degrees(0),
-                        endAngle: .degrees(360 * min(1, max(0.001, progress)))
-                    ),
-                    style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
-                )
-                .rotationEffect(.degrees(-90))
+        GeometryReader { geo in
+            let size = min(geo.size.width, geo.size.height)
+            ZStack {
+                ForEach(Array(rings.enumerated()), id: \.element.id) { index, ring in
+                    let inset = CGFloat(index) * (lineWidth + spacing)
+                    let diameter = size - lineWidth - inset * 2
+                    ZStack {
+                        Circle()
+                            .stroke(ring.color.opacity(0.16), lineWidth: lineWidth)
+                        Circle()
+                            .trim(from: 0, to: appeared ? min(1, max(0.001, ring.progress)) : 0.001)
+                            .stroke(ring.color, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
+                            .rotationEffect(.degrees(-90))
+                    }
+                    .frame(width: max(0, diameter), height: max(0, diameter))
+                }
+            }
+            .frame(width: size, height: size)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+        .animation(.spring(response: 0.9, dampingFraction: 0.8), value: rings.map(\.progress))
         .onAppear {
             withAnimation(.spring(response: 0.9, dampingFraction: 0.8).delay(0.1)) {
-                animated = true
+                appeared = true
             }
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(rings.map { "\($0.label) \(Int($0.progress * 100))%" }.joined(separator: "、"))
     }
 }
 

@@ -1,4 +1,5 @@
 import SwiftUI
+import Charts
 
 struct GoalsView: View {
     @EnvironmentObject private var store: AppStore
@@ -14,6 +15,7 @@ struct GoalsView: View {
                 routePanel
                 pacePanel
                 budgetPanel
+                trendPanel
                 balancePanel
             }
             .padding()
@@ -253,6 +255,61 @@ struct GoalsView: View {
         case .weightOnly: source = "体重からの概算"
         }
         return "基礎代謝 \(plan.basalKcal)kcal（\(source)）× 活動量 \(plan.activityFactor.formatted()) = 推定消費。脂肪1kg ≒ 7,200kcal で赤字を計算しています。"
+    }
+
+    // MARK: カロリー収支と体重の推移
+
+    private var trendPanel: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                SectionHeader(title: "カロリー収支と体重")
+                Spacer()
+                Text("直近42日")
+                    .font(FF.fontCaption)
+                    .foregroundStyle(FF.textTertiary)
+            }
+
+            if store.ledgers.isEmpty && store.bodyMetrics.count < 2 {
+                VStack(spacing: 8) {
+                    Image(systemName: "chart.line.uptrend.xyaxis")
+                        .font(.system(size: 28))
+                        .foregroundStyle(FF.textTertiary)
+                    Text("食事と体重を記録すると、ここに推移が表示されます")
+                        .font(FF.fontCaption)
+                        .foregroundStyle(FF.textSecondary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 40)
+            } else {
+                Chart {
+                    ForEach(store.ledgers) { ledger in
+                        BarMark(
+                            x: .value("日付", ledger.date, unit: .day),
+                            y: .value("収支", store.dailyBalanceKcal(for: ledger))
+                        )
+                        .foregroundStyle(store.dailyBalanceKcal(for: ledger) <= 0 ? FF.deficit : FF.over)
+                        .cornerRadius(4)
+                    }
+                    ForEach(store.bodyMetrics) { metric in
+                        LineMark(
+                            x: .value("日付", metric.date, unit: .day),
+                            y: .value("体重", metric.weightKg * 100)
+                        )
+                        .foregroundStyle(FF.accent)
+                        .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round))
+                        .interpolationMethod(.catmullRom)
+                    }
+                }
+                .frame(height: 200)
+            }
+
+            HStack(spacing: 12) {
+                DeltaCard(title: "週次理論", kg: store.predictedWeightDeltaKg(from: store.sevenDayBalance))
+                DeltaCard(title: "週次実績", kg: store.actualWeightDeltaKg(days: 7))
+                DeltaCard(title: "月次理論", kg: store.predictedWeightDeltaKg(from: store.thirtyDayBalance))
+            }
+        }
+        .panelStyle()
     }
 
     // MARK: 理論値と実績

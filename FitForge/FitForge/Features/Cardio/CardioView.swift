@@ -11,6 +11,7 @@ struct CardioView: View {
     @State private var note = ""
     @State private var rpe = 5
     @State private var sessionType = "easy"
+    @State private var savedCount = 0
 
     private let sessionTypes = ["easy", "tempo", "interval", "long", "race", "hyrox"]
 
@@ -24,6 +25,7 @@ struct CardioView: View {
             .padding()
         }
         .background(FF.background)
+        .sensoryFeedback(.success, trigger: savedCount)
     }
 
     // MARK: 記録を追加
@@ -89,6 +91,7 @@ struct CardioView: View {
                 modelContext.insert(CardioEntry(from: saved))
                 try? modelContext.save()
                 note = ""
+                savedCount += 1
             } label: {
                 Label("追加", systemImage: "plus.circle.fill")
             }

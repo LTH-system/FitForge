@@ -273,11 +273,16 @@ struct UserPreferences: Hashable, Codable {
     }
 }
 
-struct ActionSuggestion: Identifiable, Hashable, Codable {
-    var id = UUID()
+struct NextAction: Hashable {
+    enum Kind {
+        case meal
+        case weight
+        case rest
+    }
+
     var title: String
     var detail: String
-    var priority: String
+    var kind: Kind
 }
 
 struct QuickCheckIn: Identifiable, Hashable, Codable {

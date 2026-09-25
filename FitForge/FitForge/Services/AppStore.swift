@@ -472,16 +472,6 @@ final class AppStore: ObservableObject {
             ))
         }
 
-        if checkIns.first(where: { LifeDayService.isSameLifeDay($0.date, today, preferences: preferences) }) == nil {
-            checkIns.insert(QuickCheckIn(
-                date: .now,
-                mealAmount: "未入力",
-                activity: stepCount >= 8_000 ? "やった" : "少しやった",
-                condition: "普通",
-                mood: "普通"
-            ), at: 0)
-        }
-
         syncGoalWithBudget()
         save()
     }
@@ -544,77 +534,77 @@ final class AppStore: ObservableObject {
         save()
     }
 
-    func suggestions() -> [ActionSuggestion] {
-        var items: [ActionSuggestion] = []
+    // MARK: 連続記録
 
-        items.append(primaryGoalSuggestion())
-
-        // 収支コメントは記録がある場合のみ（初日に「収支ゼロで良好」と出すのは不自然）
-        if !ledgers.isEmpty {
-            if sevenDayBalance > 0 {
-                items.append(ActionSuggestion(
-                    title: "今週は収支がプラス気味",
-                    detail: "週次で約 \(sevenDayBalance) kcal（推定込み）。夕食の脂質を少し抑えるか、有酸素を2回足すと目標ペースに戻しやすいです。",
-                    priority: "高"
-                ))
-            } else {
-                items.append(ActionSuggestion(
-                    title: "減量ペースは良好",
-                    detail: "週次で約 \(abs(sevenDayBalance)) kcal の赤字（推定込み）。筋トレ重量が落ちない範囲でこのペースを維持しましょう。",
-                    priority: "中"
-                ))
-            }
-        }
-
-        if let candidate = strengthSets.filter({ $0.reps >= 8 }).max(by: { $0.date < $1.date }) {
-            items.append(ActionSuggestion(
-                title: "\(candidate.exercise) 増量候補",
-                detail: "\(candidate.weightKg.formatted())kg x \(candidate.reps)回を達成。次回は +2.5kg で6回以上を狙うタイミングです。",
-                priority: "中"
-            ))
-        }
-
-        items.append(ActionSuggestion(
-            title: "HealthKit連携",
-            detail: "体重、歩数、アクティブカロリー、ワークアウトをiOSヘルスケアから同期できる設計にしています。",
-            priority: "設定"
-        ))
-
-        return items
+    /// 自分で何かを記録した生活日（HealthKitから自動で入った体重は含めない）
+    var recordedLifeDays: Set<Date> {
+        let dates = meals.map(\.date)
+            + strengthSets.map(\.date)
+            + cardioSessions.map(\.date)
+            + checkIns.map(\.date)
+            + bodyMetrics.filter { $0.source != .healthKit }.map(\.date)
+        return Set(dates.map { LifeDayService.startOfLifeDay(containing: $0, preferences: preferences) })
     }
 
-    private func primaryGoalSuggestion() -> ActionSuggestion {
-        switch preferences.onboarding.primaryGoal {
-        case .fatLoss:
-            return ActionSuggestion(
-                title: "今日は収支を軽く整える日",
-                detail: "食事は\(preferences.onboarding.mealTrackingStyle.rawValue)記録でOK。歩数か軽い有酸素を少し足すと、減量ペースを作りやすいです。",
-                priority: "今日"
-            )
-        case .muscleGain:
-            return ActionSuggestion(
-                title: "主要種目を1つ伸ばす",
-                detail: "前回の重量か回数を少しだけ上回ることを狙いましょう。無理な日は同重量でフォーム優先です。",
-                priority: "今日"
-            )
-        case .running:
-            return ActionSuggestion(
-                title: "ランは目的を決めて記録",
-                detail: "easy、tempo、longなどタイプを残すと、週次の走行量と疲労を見やすくなります。",
-                priority: "今日"
-            )
-        case .hyrox:
-            return ActionSuggestion(
-                title: "ランとステーションの弱点を残す",
-                detail: "HYROXはタイムだけでなく、失速した種目やRPEをメモすると次の伸びしろが見つかります。",
-                priority: "今日"
-            )
-        case .health:
-            return ActionSuggestion(
-                title: "今日はここまででOK",
-                detail: "30秒チェックインだけでも十分です。休む日も記録に入れて、週単位で見ていきましょう。",
-                priority: "今日"
+    var currentStreak: Int {
+        StreakCalculator.streak(
+            recordedDays: recordedLifeDays,
+            today: LifeDayService.startOfLifeDay(containing: .now, preferences: preferences)
+        )
+    }
+
+    var hasLoggedWeightToday: Bool {
+        bodyMetrics.contains { LifeDayService.isSameLifeDay($0.date, .now, preferences: preferences) }
+    }
+
+    // MARK: 次の一手
+
+    func nextAction(now: Date = .now) -> NextAction {
+        let remaining = dailyCalorieBudget - todayIntakeKcal
+        let proteinLeft = max(0, proteinTargetG - todayPFC.protein)
+        let hour = Calendar.current.component(.hour, from: now)
+
+        if !hasLoggedWeightToday && hour < 12 {
+            return NextAction(
+                title: "まず体重を記録",
+                detail: "朝の同じタイミングで測ると、日々の変化が見やすくなります。",
+                kind: .weight
             )
         }
+
+        if remaining < 0 {
+            return NextAction(
+                title: "今日は予算を \(abs(remaining))kcal 超えています",
+                detail: "ここからは軽めで大丈夫。1日で取り返そうとせず、週の平均で整えていきましょう。",
+                kind: .rest
+            )
+        }
+
+        let mealName: String
+        switch hour {
+        case ..<11: mealName = "朝食"
+        case ..<15: mealName = "昼食"
+        case ..<17: mealName = "間食"
+        default: mealName = "夕食"
+        }
+
+        if hour >= 21 && proteinLeft == 0 {
+            return NextAction(
+                title: "今日の食事はばっちりです",
+                detail: "予算内でたんぱく質も目標に届きました。このまま休みましょう。",
+                kind: .rest
+            )
+        }
+
+        var detail = "\(mealName)は \(remaining)kcal 以内"
+        if proteinLeft > 0 {
+            detail += "・たんぱく質 \(min(proteinLeft, 40))g が目安です。"
+            if proteinLeft >= 20 {
+                detail += "サラダチキンや卵、納豆を足すと届きやすいです。"
+            }
+        } else {
+            detail += "が目安です。たんぱく質は今日の目標に届いています。"
+        }
+        return NextAction(title: "\(mealName)の目安", detail: detail, kind: .meal)
     }
 }

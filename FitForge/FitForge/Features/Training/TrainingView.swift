@@ -13,6 +13,7 @@ struct TrainingView: View {
     @State private var rpe = 8
     @State private var note = ""
     @State private var selectedCategory: ExerciseCategory?
+    @State private var savedCount = 0
 
     /// 記録済み種目のみ表示する。カタログ全70種をセグメントに並べると幅が壊れるため。
     var exercises: [String] {
@@ -42,6 +43,7 @@ struct TrainingView: View {
             .padding()
         }
         .background(FF.background)
+        .sensoryFeedback(.success, trigger: savedCount)
         .onAppear { prefillFromLastSet() }
         .onChange(of: exerciseName) { prefillFromLastSet() }
     }
@@ -172,6 +174,7 @@ struct TrainingView: View {
                 try? modelContext.save()
                 selectedExercise = exerciseName
                 note = ""
+                savedCount += 1
             } label: {
                 Label("追加", systemImage: "plus.circle.fill")
             }

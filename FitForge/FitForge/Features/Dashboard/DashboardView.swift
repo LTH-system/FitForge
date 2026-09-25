@@ -1,402 +1,389 @@
 import SwiftUI
-import Charts
 import SwiftData
 
 struct DashboardView: View {
     @EnvironmentObject private var store: AppStore
     @EnvironmentObject private var healthKit: HealthKitService
+    @EnvironmentObject private var router: AppRouter
     @Environment(\.modelContext) private var modelContext
-    @State private var mealAmount = "普通"
-    @State private var activity = "少しやった"
-    @State private var condition = "普通"
-    @State private var mood = "前向き"
-    @State private var weightInput = 0.0
-    @State private var weightLogged = false
+
+    private static let dailyStepGoal = 8_000
 
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 18) {
+                VStack(spacing: 14) {
+                    header
                     heroPanel
-                    weightPanel
-                    pfcPanel
-                    checkInPanel
-                    calorieTrend
-                    suggestions
-                    healthKitPanel
+                    nextActionPanel
+                    timelinePanel
+                    healthKitRow
                 }
                 .padding()
             }
             .background(FF.background)
-            .navigationTitle("FitForge")
-            .toolbar {
-                NavigationLink {
-                    SettingsView()
-                } label: {
-                    Image(systemName: "gearshape")
-                        .foregroundStyle(FF.textSecondary)
-                }
-            }
+            .refreshable { await syncHealthKitToday() }
+            .toolbar(.hidden, for: .navigationBar)
         }
     }
 
-    // MARK: - ヒーロー（残りカロリー）
+    // MARK: - ヘッダー
+
+    private var header: some View {
+        HStack(alignment: .bottom) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(Date.now.formatted(.dateTime.month().day().weekday(.wide).locale(Locale(identifier: "ja_JP"))))
+                    .font(FF.fontCaption)
+                    .foregroundStyle(FF.textSecondary)
+                Text("今日")
+                    .font(.system(size: 30, weight: .bold))
+                    .foregroundStyle(FF.textPrimary)
+            }
+            Spacer()
+            if store.currentStreak > 0 {
+                HStack(spacing: 5) {
+                    Image(systemName: "flame.fill")
+                        .foregroundStyle(FF.accent)
+                    Text("\(store.currentStreak)日連続")
+                        .monospacedDigit()
+                        .foregroundStyle(FF.accentText)
+                }
+                .font(.system(size: 13, weight: .bold))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(FF.surface, in: Capsule())
+                .accessibilityLabel("\(store.currentStreak)日連続で記録中。週2日までは休んでも途切れません")
+            }
+            NavigationLink {
+                SettingsView()
+                    .toolbar(.visible, for: .navigationBar)
+            } label: {
+                Image(systemName: "gearshape")
+                    .font(.system(size: 17, weight: .medium))
+                    .foregroundStyle(FF.textSecondary)
+                    .frame(width: 44, height: 44)
+            }
+            .accessibilityLabel("マイページ")
+        }
+    }
+
+    // MARK: - ヒーロー（3つのリングと残り予算）
 
     private var heroPanel: some View {
-        let target = store.dailyCalorieBudget
-        // 摂取は食事記録から直接計算する（台帳経由だと未同期日にズレる）
+        let budget = store.dailyCalorieBudget
         let intake = store.todayIntakeKcal
+        let protein = store.todayPFC.protein
+        let proteinTarget = store.proteinTargetG
+        let steps = store.todayLedger?.stepCount ?? Int(healthKit.latestStepCount)
+        let remaining = budget - intake
         let burn = store.expenditureKcal(for: .now)
         let isBurnEstimated = store.isExpenditureEstimated(for: .now)
-        let balance = intake - burn
-        let remaining = target - intake
-        let progress = target > 0 ? Double(intake) / Double(target) : 0
-        let onboarding = store.preferences.onboarding
+
+        let rings = [
+            RingSpec(label: "食事", progress: Double(intake) / Double(max(1, budget)), color: remaining >= 0 ? FF.accent : FF.over),
+            RingSpec(label: "たんぱく質", progress: Double(protein) / Double(max(1, proteinTarget)), color: FF.protein),
+            RingSpec(label: "歩数", progress: Double(steps) / Double(Self.dailyStepGoal), color: FF.burn)
+        ]
 
         return VStack(spacing: 16) {
-            HStack {
-                FFBadge(text: onboarding.primaryGoal.rawValue, color: FF.accent)
-                FFBadge(text: "週 \(onboarding.weeklyWorkoutDays) 回ペース", color: FF.run)
-                Spacer()
-                Text("目標 \(target) kcal")
-                    .font(FF.fontCaption)
-                    .monospacedDigit()
-                    .foregroundStyle(FF.textTertiary)
-            }
+            HStack(spacing: 16) {
+                ActivityRings(rings: rings)
+                    .frame(width: 148, height: 148)
 
-            ZStack {
-                RingGauge(progress: progress, lineWidth: 14)
-                    .frame(width: 240, height: 240)
-
-                VStack(spacing: 4) {
-                    Text(remaining >= 0 ? "今日あと" : "目標から")
-                        .font(FF.fontCaption.weight(.medium))
-                        .foregroundStyle(FF.textSecondary)
-                    Text(remaining >= 0 ? "\(remaining)" : "+\(abs(remaining))")
-                        .font(FF.fontHero)
-                        .monospacedDigit()
-                        .foregroundStyle(remaining >= 0 ? FF.textPrimary : FF.over)
-                        .contentTransition(.numericText())
-                    Text("kcal")
-                        .font(FF.fontCaption)
-                        .foregroundStyle(FF.textTertiary)
-                }
-            }
-
-            Text(coachLine)
-                .font(FF.fontBody)
-                .lineSpacing(5)
-                .foregroundStyle(FF.textSecondary)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: .infinity)
-
-            HStack(spacing: 12) {
-                MetricCard(title: "摂取", value: "\(intake)", unit: "kcal", color: FF.intake, icon: "fork.knife")
-                MetricCard(
-                    title: isBurnEstimated ? "消費(推定)" : "消費",
-                    value: "\(burn)",
-                    unit: "kcal",
-                    color: FF.burn,
-                    icon: "flame.fill"
-                )
-                MetricCard(
-                    title: "差分",
-                    value: "\(balance)",
-                    unit: "kcal",
-                    color: balance <= 0 ? FF.deficit : FF.over,
-                    icon: "scalemass.fill"
-                )
-            }
-        }
-        .panelStyle()
-    }
-
-    // MARK: - 体重クイック記録
-
-    private var weightPanel: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack {
-                SectionHeader(title: "今日の体重", subtitle: "毎日同じタイミングで測ると変化が見えます")
-                Spacer()
-                if weightLogged {
-                    FFBadge(text: "記録済み", color: FF.deficit)
-                }
-            }
-
-            HStack(spacing: 12) {
-                FFStepperRow(
-                    label: "",
-                    valueText: String(format: "%.1fkg", weightInput),
-                    onMinus: { weightInput = max(30, weightInput - 0.1) },
-                    onPlus: { weightInput = min(200, weightInput + 0.1) }
-                )
-
-                Button("記録") {
-                    store.logWeight(weightInput)
-                    modelContext.insert(BodyMetricEntry(from: BodyMetric(date: .now, weightKg: weightInput, bodyFatPercent: nil)))
-                    try? modelContext.save()
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                        weightLogged = true
+                VStack(alignment: .leading, spacing: 10) {
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(remaining >= 0 ? "残り予算" : "予算オーバー")
+                            .font(FF.fontCaption)
+                            .foregroundStyle(FF.textSecondary)
+                        HStack(alignment: .lastTextBaseline, spacing: 3) {
+                            Text("\(abs(remaining))")
+                                .font(FF.fontHero)
+                                .monospacedDigit()
+                                .foregroundStyle(remaining >= 0 ? FF.textPrimary : FF.over)
+                                .contentTransition(.numericText())
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.6)
+                            Text("kcal")
+                                .font(FF.fontCaption)
+                                .foregroundStyle(FF.textSecondary)
+                        }
                     }
+                    legendRow(color: rings[0].color, label: "食事", value: "\(intake)", total: "/\(budget)")
+                    legendRow(color: FF.protein, label: "たんぱく質", value: "\(protein)", total: "/\(proteinTarget)g")
+                    legendRow(color: FF.burn, label: "歩数", value: steps.formatted(), total: "/\(Self.dailyStepGoal / 1000)千")
                 }
-                .buttonStyle(FFCompactButtonStyle(tint: FF.accent, isSelected: true))
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
+            HStack(spacing: 10) {
+                MetricCard(title: "食べた", value: "\(intake)", unit: "kcal", color: FF.intake, icon: "fork.knife")
+                MetricCard(title: isBurnEstimated ? "消費(推定)" : "消費", value: "\(burn)", unit: "kcal", color: FF.burn, icon: "flame.fill")
+                MetricCard(title: "差分", value: "\(intake - burn)", unit: "kcal", color: intake - burn <= 0 ? FF.deficit : FF.over, icon: "scalemass.fill")
             }
         }
         .panelStyle()
-        .onAppear {
-            if weightInput == 0 { weightInput = store.latestWeight }
-            weightLogged = store.bodyMetrics.contains {
-                LifeDayService.isSameLifeDay($0.date, .now, preferences: store.preferences)
-            }
-        }
+        .animation(.spring(response: 0.5, dampingFraction: 0.85), value: intake)
     }
 
-    private var coachLine: String {
-        store.suggestions().first?.detail ?? "今日できることを、できる分だけで大丈夫です。"
-    }
-
-    // MARK: - PFC
-
-    private var pfcPanel: some View {
-        let pfc = store.todayPFC
-        return VStack(alignment: .leading, spacing: 14) {
-            SectionHeader(
-                title: "今日のPFC",
-                subtitle: "タンパク質目標 \(store.proteinTargetG)g（体重×1.6gの目安）"
-            )
-            PFCBars(
-                protein: pfc.protein,
-                fat: pfc.fat,
-                carb: pfc.carb,
-                proteinMax: Double(store.proteinTargetG)
-            )
-        }
-        .panelStyle()
-    }
-
-    // MARK: - 30秒チェックイン
-
-    private var checkInPanel: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            SectionHeader(title: "30秒チェックイン", subtitle: "完璧じゃなくて大丈夫。休む日も記録に入ります。")
-
-            checkInRow("食事") {
-                FFSegmentedPicker(
-                    options: ["少なめ", "普通", "多め"],
-                    label: { $0 },
-                    selection: $mealAmount,
-                    tint: FF.intake
-                )
-            }
-
-            checkInRow("運動") {
-                FFSegmentedPicker(
-                    options: ["休んだ", "少しやった", "やった"],
-                    label: { $0 },
-                    selection: $activity,
-                    tint: FF.burn
-                )
-            }
-
-            checkInRow("体調") {
-                FFSegmentedPicker(
-                    options: ["だるい", "普通", "よい"],
-                    label: { $0 },
-                    selection: $condition,
-                    tint: FF.accent
-                )
-            }
-
-            checkInRow("気分") {
-                FFSegmentedPicker(
-                    options: ["しんどい", "普通", "前向き"],
-                    label: { $0 },
-                    selection: $mood,
-                    tint: FF.protein
-                )
-            }
-
-            Button {
-                store.addCheckIn(mealAmount: mealAmount, activity: activity, condition: condition, mood: mood)
-            } label: {
-                Label("今日はここまででOK", systemImage: "checkmark.circle.fill")
-            }
-            .buttonStyle(FFSecondaryButtonStyle())
-
-            if let latest = store.checkIns.first {
-                Text("最新: 食事 \(latest.mealAmount) / 運動 \(latest.activity) / 体調 \(latest.condition)")
-                    .font(FF.fontCaption)
-                    .foregroundStyle(FF.textTertiary)
-            }
-        }
-        .panelStyle()
-    }
-
-    private func checkInRow<Content: View>(_ label: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
+    private func legendRow(color: Color, label: String, value: String, total: String) -> some View {
+        HStack(spacing: 6) {
+            Circle()
+                .fill(color)
+                .frame(width: 8, height: 8)
             Text(label)
-                .font(FF.fontCaption.weight(.medium))
                 .foregroundStyle(FF.textSecondary)
-            content()
+            Spacer(minLength: 4)
+            Text(value)
+                .fontWeight(.semibold)
+                .foregroundStyle(FF.textPrimary)
+            + Text(total)
+                .foregroundStyle(FF.textTertiary)
         }
+        .font(FF.fontCaption)
+        .monospacedDigit()
+        .lineLimit(1)
     }
 
-    // MARK: - カロリー収支チャート
+    // MARK: - 次の一手
 
-    private var calorieTrend: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                SectionHeader(title: "カロリー収支と体重")
-                Spacer()
-                Text("直近42日")
-                    .font(FF.fontCaption)
-                    .foregroundStyle(FF.textTertiary)
+    private var nextActionPanel: some View {
+        let action = store.nextAction()
+
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 36, height: 36)
+                    .background(FF.ctaSolid, in: Circle())
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("次の一手 · \(action.title)")
+                        .font(FF.fontCaption.weight(.bold))
+                        .foregroundStyle(FF.accentText)
+                    Text(action.detail)
+                        .font(.system(size: 15, weight: .medium))
+                        .lineSpacing(4)
+                        .foregroundStyle(FF.textPrimary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
 
-            if store.ledgers.isEmpty && store.bodyMetrics.count < 2 {
+            switch action.kind {
+            case .meal:
+                HStack(spacing: 8) {
+                    Button {
+                        router.open(.meals)
+                    } label: {
+                        Label("食事を記録", systemImage: "fork.knife")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity, minHeight: 44)
+                            .background(FF.ctaSolid, in: Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    Button {
+                        router.isQuickAddPresented = true
+                    } label: {
+                        Text("いつもの")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(FF.accentText)
+                            .padding(.horizontal, 18)
+                            .frame(minHeight: 44)
+                            .background(FF.surface, in: Capsule())
+                    }
+                    .buttonStyle(.plain)
+                }
+            case .weight:
+                Button {
+                    router.isQuickAddPresented = true
+                } label: {
+                    Label("体重を記録", systemImage: "scalemass")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                        .background(FF.ctaSolid, in: Capsule())
+                }
+                .buttonStyle(.plain)
+            case .rest:
+                EmptyView()
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(FF.accentSoft, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+    }
+
+    // MARK: - 今日の記録
+
+    private struct TimelineItem: Identifiable {
+        var id: UUID
+        var date: Date
+        var icon: String
+        var color: Color
+        var title: String
+        var detail: String
+        var trailing: String?
+        var badge: String?
+    }
+
+    private var todayItems: [TimelineItem] {
+        let isToday = { (date: Date) in LifeDayService.isSameLifeDay(date, .now, preferences: store.preferences) }
+
+        let meals = store.todayMeals.map {
+            TimelineItem(id: $0.id, date: $0.date, icon: "fork.knife", color: FF.intake, title: $0.title,
+                         detail: "P\($0.proteinG)g・F\($0.fatG)g・C\($0.carbG)g", trailing: "\($0.estimatedKcal) kcal")
+        }
+        let strength = store.strengthSets.filter { isToday($0.date) }.map { set in
+            let earlier = store.strengthSets.filter { $0.exercise == set.exercise && $0.date < set.date }
+            let isBest = !earlier.isEmpty && earlier.allSatisfy { $0.weightKg < set.weightKg }
+            return TimelineItem(id: set.id, date: set.date, icon: "dumbbell", color: FF.strength, title: set.exercise,
+                                detail: "\(set.weightKg.formatted())kg × \(set.reps)回 × \(set.sets)セット",
+                                badge: isBest ? "ベスト更新" : nil)
+        }
+        let cardio = store.cardioSessions.filter { isToday($0.date) }.map {
+            TimelineItem(id: $0.id, date: $0.date, icon: "figure.run", color: FF.workoutColor($0.kind), title: $0.kind.rawValue,
+                         detail: String(format: "%.1fkm / %d分", $0.distanceKm, $0.durationMinutes), trailing: "\($0.calories) kcal")
+        }
+        let weights = store.bodyMetrics.filter { isToday($0.date) }.map {
+            TimelineItem(id: $0.id, date: $0.date, icon: "scalemass", color: FF.burn, title: "体重",
+                         detail: $0.source == .healthKit ? "ヘルスケアから" : "記録", trailing: String(format: "%.1f kg", $0.weightKg))
+        }
+        let checkIns = store.checkIns.filter { isToday($0.date) }.map {
+            TimelineItem(id: $0.id, date: $0.date, icon: "checkmark.circle", color: FF.deficit, title: "チェックイン",
+                         detail: "体調 \($0.condition)・気分 \($0.mood)")
+        }
+        return (meals + strength + cardio + weights + checkIns).sorted { $0.date < $1.date }
+    }
+
+    private var timelinePanel: some View {
+        let items = todayItems
+
+        return VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .firstTextBaseline) {
+                SectionHeader(title: "今日の記録")
+                Spacer()
+                Text("\(items.count)件")
+                    .font(FF.fontCaption)
+                    .foregroundStyle(FF.textSecondary)
+            }
+            .padding(.bottom, 6)
+
+            if items.isEmpty {
                 VStack(spacing: 8) {
-                    Image(systemName: "chart.line.uptrend.xyaxis")
-                        .font(.system(size: 28))
+                    Image(systemName: "plus.circle")
+                        .font(.system(size: 26))
                         .foregroundStyle(FF.textTertiary)
-                    Text("食事と体重を記録すると、ここに推移が表示されます")
+                    Text("下の＋から、食事や体重を記録してみましょう")
                         .font(FF.fontCaption)
                         .foregroundStyle(FF.textSecondary)
                 }
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 40)
-            } else {
-            Chart {
-                ForEach(store.ledgers) { ledger in
-                    BarMark(
-                        x: .value("日付", ledger.date, unit: .day),
-                        y: .value("収支", store.dailyBalanceKcal(for: ledger))
-                    )
-                    .foregroundStyle(store.dailyBalanceKcal(for: ledger) <= 0 ? FF.deficit : FF.over)
-                    .cornerRadius(4)
-                }
-
-                ForEach(store.bodyMetrics) { metric in
-                    AreaMark(
-                        x: .value("日付", metric.date, unit: .day),
-                        y: .value("体重", metric.weightKg * 100)
-                    )
-                    .interpolationMethod(.catmullRom)
-                    .foregroundStyle(
-                        LinearGradient(
-                            colors: [FF.accent.opacity(0.2), FF.accent.opacity(0)],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
-
-                    LineMark(
-                        x: .value("日付", metric.date, unit: .day),
-                        y: .value("体重", metric.weightKg * 100)
-                    )
-                    .foregroundStyle(FF.accent)
-                    .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round))
-                    .interpolationMethod(.catmullRom)
-                }
-            }
-            .frame(height: 220)
+                .padding(.vertical, 20)
             }
 
-            HStack(spacing: 12) {
-                DeltaCard(title: "週次理論", kg: store.predictedWeightDeltaKg(from: store.sevenDayBalance))
-                DeltaCard(title: "週次実績", kg: store.actualWeightDeltaKg(days: 7))
-                DeltaCard(title: "月次理論", kg: store.predictedWeightDeltaKg(from: store.thirtyDayBalance))
-            }
-        }
-        .panelStyle()
-    }
-
-    // MARK: - 行動パターン
-
-    private var suggestions: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            SectionHeader(title: "行動パターン")
-
-            ForEach(store.suggestions()) { item in
-                HStack(alignment: .top, spacing: 12) {
-                    FFBadge(text: item.priority, color: FF.accent)
-
-                    VStack(alignment: .leading, spacing: 4) {
+            ForEach(items) { item in
+                HStack(spacing: 12) {
+                    Text(item.date.formatted(date: .omitted, time: .shortened))
+                        .font(.system(size: 13, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(FF.textSecondary)
+                        .frame(width: 44, alignment: .leading)
+                    IconSeat(systemName: item.icon, color: item.color, size: 34)
+                    VStack(alignment: .leading, spacing: 1) {
                         Text(item.title)
-                            .font(.system(size: 15, weight: .semibold))
+                            .font(.system(size: 14, weight: .semibold))
                             .foregroundStyle(FF.textPrimary)
+                            .lineLimit(1)
                         Text(item.detail)
                             .font(FF.fontCaption)
-                            .lineSpacing(3)
                             .foregroundStyle(FF.textSecondary)
+                            .lineLimit(1)
                     }
-                    Spacer(minLength: 0)
+                    Spacer(minLength: 4)
+                    if let badge = item.badge {
+                        Label(badge, systemImage: "trophy.fill")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(FF.strength)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(FF.strength.opacity(0.12), in: Capsule())
+                    } else if let trailing = item.trailing {
+                        Text(trailing)
+                            .font(.system(size: 14, weight: .semibold, design: .rounded))
+                            .monospacedDigit()
+                            .foregroundStyle(item.color)
+                    }
                 }
-                .padding(12)
-                .background(FF.surfaceSecondary, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .padding(.vertical, 6)
+                .overlay(alignment: .top) {
+                    Rectangle().fill(FF.separator).frame(height: 1)
+                }
             }
         }
         .panelStyle()
     }
 
-    // MARK: - HealthKit
+    // MARK: - ヘルスケア同期
 
-    private var healthKitPanel: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 12) {
-                IconSeat(systemName: "heart.fill", color: FF.protein, size: 38)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("iOSヘルスケア")
-                        .font(FF.fontSection)
-                        .foregroundStyle(FF.textPrimary)
-                    Text(healthKit.authorizationStatusText)
-                        .font(FF.fontCaption)
-                        .foregroundStyle(FF.textSecondary)
-                }
-                Spacer()
-                Button("連携") {
-                    Task { await healthKit.requestAuthorization(preferences: store.preferences) }
-                }
-                .buttonStyle(FFCompactButtonStyle(tint: FF.accent, isSelected: true))
+    private var healthKitRow: some View {
+        HStack(spacing: 10) {
+            IconSeat(systemName: "heart.fill", color: FF.protein, size: 30)
+            VStack(alignment: .leading, spacing: 1) {
+                Text("ヘルスケア · \(healthKit.authorizationStatusText)")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(FF.textPrimary)
+                Text("画面を下に引っぱると今日の歩数と消費を同期します")
+                    .font(.system(size: 11))
+                    .foregroundStyle(FF.textSecondary)
             }
-
-            HStack(spacing: 12) {
-                MetricCard(title: "歩数", value: "\(Int(healthKit.latestStepCount))", unit: "歩", color: FF.carb, icon: "figure.walk")
-                MetricCard(title: "活動", value: "\(Int(healthKit.latestActiveEnergyKcal))", unit: "kcal", color: FF.burn, icon: "flame.fill")
-            }
-
+            Spacer()
             Button {
                 Task {
-                    await healthKit.refreshTodaySummary(preferences: store.preferences)
-                    store.applyHealthKitSummary(
-                        stepCount: Int(healthKit.latestStepCount),
-                        activeKcal: Int(healthKit.latestActiveEnergyKcal),
-                        basalKcal: Int(healthKit.latestBasalEnergyKcal),
-                        bodyMassKg: healthKit.latestBodyMassKg
-                    )
-                    modelContext.insert(DailyHealthSummaryEntry(
-                        lifeDayStart: LifeDayService.startOfLifeDay(containing: .now, preferences: store.preferences),
-                        intakeKcal: store.todayLedger?.intakeKcal ?? 0,
-                        activeKcal: Int(healthKit.latestActiveEnergyKcal),
-                        basalKcal: Int(healthKit.latestBasalEnergyKcal),
-                        stepCount: Int(healthKit.latestStepCount),
-                        sourceRaw: DataSource.healthKit.rawValue
-                    ))
-                    if let bodyMassKg = healthKit.latestBodyMassKg {
-                        modelContext.insert(BodyMetricEntry(from: BodyMetric(
-                            date: .now,
-                            weightKg: bodyMassKg,
-                            bodyFatPercent: nil,
-                            waistCm: nil,
-                            source: .healthKit
-                        )))
+                    if healthKit.authorizationStatusText != "連携済み" {
+                        await healthKit.requestAuthorization(preferences: store.preferences)
                     }
-                    try? modelContext.save()
+                    await syncHealthKitToday()
                 }
             } label: {
-                Label("今日のデータを同期", systemImage: "arrow.triangle.2.circlepath")
+                Image(systemName: "arrow.triangle.2.circlepath")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(FF.accentText)
+                    .frame(width: 44, height: 44)
+                    .background(FF.accentSoft, in: Circle())
             }
-            .buttonStyle(FFSecondaryButtonStyle(tint: FF.burn))
+            .buttonStyle(.plain)
+            .accessibilityLabel("ヘルスケアと同期")
         }
-        .panelStyle()
+        .padding(12)
+        .background(FF.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
+    private func syncHealthKitToday() async {
+        guard healthKit.isAvailable else { return }
+        await healthKit.refreshTodaySummary(preferences: store.preferences)
+        store.applyHealthKitSummary(
+            stepCount: Int(healthKit.latestStepCount),
+            activeKcal: Int(healthKit.latestActiveEnergyKcal),
+            basalKcal: Int(healthKit.latestBasalEnergyKcal),
+            bodyMassKg: healthKit.latestBodyMassKg
+        )
+        modelContext.insert(DailyHealthSummaryEntry(
+            lifeDayStart: LifeDayService.startOfLifeDay(containing: .now, preferences: store.preferences),
+            intakeKcal: store.todayLedger?.intakeKcal ?? 0,
+            activeKcal: Int(healthKit.latestActiveEnergyKcal),
+            basalKcal: Int(healthKit.latestBasalEnergyKcal),
+            stepCount: Int(healthKit.latestStepCount),
+            sourceRaw: DataSource.healthKit.rawValue
+        ))
+        if let bodyMassKg = healthKit.latestBodyMassKg {
+            modelContext.insert(BodyMetricEntry(from: BodyMetric(
+                date: .now,
+                weightKg: bodyMassKg,
+                bodyFatPercent: nil,
+                waistCm: nil,
+                source: .healthKit
+            )))
+        }
+        try? modelContext.save()
     }
 }
