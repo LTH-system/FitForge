@@ -108,6 +108,27 @@ struct MealLog: Identifiable, Hashable, Codable {
     var source: DataSource = .ai
 }
 
+struct DailyNutrition: Identifiable, Hashable {
+    var lifeDayStart: Date
+    var meals: [MealLog]
+
+    var id: Date { lifeDayStart }
+    var kcal: Int { meals.map(\.estimatedKcal).reduce(0, +) }
+    var proteinG: Int { meals.map(\.proteinG).reduce(0, +) }
+    var fatG: Int { meals.map(\.fatG).reduce(0, +) }
+    var carbG: Int { meals.map(\.carbG).reduce(0, +) }
+
+    /// PFCそれぞれがエネルギーに占める割合(%)。P・Cは4kcal/g、Fは9kcal/gで換算
+    var energyRatio: (protein: Int, fat: Int, carb: Int)? {
+        let p = Double(proteinG * 4), f = Double(fatG * 9), c = Double(carbG * 4)
+        let total = p + f + c
+        guard total > 0 else { return nil }
+        let protein = Int((p / total * 100).rounded())
+        let fat = Int((f / total * 100).rounded())
+        return (protein, fat, 100 - protein - fat)
+    }
+}
+
 struct StrengthSet: Identifiable, Hashable, Codable {
     var id = UUID()
     var exercise: String

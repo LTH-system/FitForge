@@ -12,66 +12,166 @@ struct MealsView: View {
     @State private var editableProtein = 0
     @State private var editableFat = 0
     @State private var editableCarb = 0
+    /// 表示中の生活日（その日に含まれる任意の時刻）
+    @State private var selectedDay = Date.now
     private let ai = MealAIService()
+    private static let topAnchor = "mealsTop"
 
-    /// 当日（生活日）の食事を合算したPFCとカロリー
-    private var todayTotals: (kcal: Int, protein: Int, fat: Int, carb: Int) {
-        let todayMeals = store.meals.filter {
-            LifeDayService.isSameLifeDay($0.date, .now, preferences: store.preferences)
-        }
-        return (
-            todayMeals.map(\.estimatedKcal).reduce(0, +),
-            todayMeals.map(\.proteinG).reduce(0, +),
-            todayMeals.map(\.fatG).reduce(0, +),
-            todayMeals.map(\.carbG).reduce(0, +)
-        )
+    private var isViewingToday: Bool {
+        LifeDayService.isSameLifeDay(selectedDay, .now, preferences: store.preferences)
+    }
+
+    private var selectedNutrition: DailyNutrition {
+        store.nutrition(onLifeDay: selectedDay)
     }
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 12) {
-                    todayPanel
-                    if store.preferences.onboarding.mealTrackingStyle == .loose {
-                        looseMealPanel
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(spacing: 12) {
+                        dayNavigator
+                            .id(Self.topAnchor)
+                        dayPanel
+                        if isViewingToday {
+                            if store.preferences.onboarding.mealTrackingStyle == .loose {
+                                looseMealPanel
+                            }
+                            inputPanel
+                            if pendingMeal != nil {
+                                confirmationPanel
+                            }
+                        }
+                        dayMealsPanel
+                        historyPanel { day in
+                            withAnimation(.easeInOut(duration: 0.25)) {
+                                selectedDay = day
+                                proxy.scrollTo(Self.topAnchor, anchor: .top)
+                            }
+                        }
                     }
-                    inputPanel
-                    if pendingMeal != nil {
-                        confirmationPanel
-                    }
-                    recentMeals
+                    .padding()
                 }
-                .padding()
             }
             .background(FF.background)
             .navigationTitle("食事管理")
         }
     }
 
-    // MARK: 当日PFCサマリー（主役カード）
+    // MARK: 日付の切り替え
 
-    private var todayPanel: some View {
-        VStack(alignment: .leading, spacing: 14) {
+    private var dayNavigator: some View {
+        HStack(spacing: 4) {
+            dayStepButton("chevron.left", label: "前の日", offset: -1)
+            Spacer(minLength: 0)
+            VStack(spacing: 2) {
+                Text(dayTitle(selectedNutrition.lifeDayStart))
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(FF.textPrimary)
+                if isViewingToday {
+                    Text("今日")
+                        .font(FF.fontCaption)
+                        .foregroundStyle(FF.accent)
+                } else {
+                    Button("今日に戻る") {
+                        withAnimation(.easeInOut(duration: 0.25)) { selectedDay = .now }
+                    }
+                    .font(FF.fontCaption.weight(.semibold))
+                    .foregroundStyle(FF.accent)
+                }
+            }
+            Spacer(minLength: 0)
+            dayStepButton("chevron.right", label: "次の日", offset: 1)
+                .disabled(isViewingToday)
+                .opacity(isViewingToday ? 0.3 : 1)
+        }
+        .padding(.horizontal, 4)
+    }
+
+    private func dayStepButton(_ symbol: String, label: String, offset: Int) -> some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.25)) {
+                selectedDay = Calendar.current.date(byAdding: .day, value: offset, to: selectedDay) ?? selectedDay
+            }
+        } label: {
+            Image(systemName: symbol)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(FF.textSecondary)
+                .frame(width: 44, height: 44)
+                .background(FF.surface, in: Circle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
+    }
+
+    private func dayTitle(_ day: Date) -> String {
+        day.formatted(.dateTime.month().day().weekday(.abbreviated).locale(Locale(identifier: "ja_JP")))
+    }
+
+    // MARK: 選択日のカロリー・PFCサマリー（主役カード）
+
+    private var dayPanel: some View {
+        let day = selectedNutrition
+        let target = store.goal.dailyCalorieTarget
+        let proteinTarget = store.proteinTargetG
+
+        return VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .firstTextBaseline) {
-                SectionHeader(title: "今日の食事バランス")
+                SectionHeader(title: isViewingToday ? "今日の食事バランス" : "この日の食事バランス")
                 Spacer()
                 HStack(alignment: .lastTextBaseline, spacing: 3) {
-                    Text("\(todayTotals.kcal)")
+                    Text("\(day.kcal)")
                         .font(FF.fontNumber)
                         .monospacedDigit()
                         .foregroundStyle(FF.intake)
-                    Text("kcal")
+                    Text("/ \(target) kcal")
                         .font(FF.fontCaption)
+                        .monospacedDigit()
                         .foregroundStyle(FF.textSecondary)
                 }
             }
+
+            HStack(spacing: 10) {
+                IconSeat(systemName: "bolt.heart.fill", color: FF.protein, size: 34)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("タンパク質")
+                        .font(FF.fontCaption)
+                        .foregroundStyle(FF.textSecondary)
+                    HStack(alignment: .lastTextBaseline, spacing: 3) {
+                        Text("\(day.proteinG)")
+                            .font(FF.fontNumber)
+                            .monospacedDigit()
+                            .foregroundStyle(FF.protein)
+                        Text("g / 目標 \(proteinTarget)g")
+                            .font(FF.fontCaption)
+                            .monospacedDigit()
+                            .foregroundStyle(FF.textSecondary)
+                    }
+                }
+                Spacer()
+                Text(day.proteinG >= proteinTarget ? "達成" : "あと \(proteinTarget - day.proteinG)g")
+                    .font(FF.fontChip)
+                    .monospacedDigit()
+                    .foregroundStyle(day.proteinG >= proteinTarget ? FF.deficit : FF.protein)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background((day.proteinG >= proteinTarget ? FF.deficit : FF.protein).opacity(0.12), in: Capsule())
+            }
+
             PFCBars(
-                protein: todayTotals.protein,
-                fat: todayTotals.fat,
-                carb: todayTotals.carb,
-                proteinMax: Double(store.proteinTargetG)
+                protein: day.proteinG,
+                fat: day.fatG,
+                carb: day.carbG,
+                proteinMax: Double(proteinTarget)
             )
-            Text("タンパク質目標 \(store.proteinTargetG)g（体重×1.6gの目安）")
+
+            if let ratio = day.energyRatio {
+                Text("PFCバランス（カロリー比） P \(ratio.protein)% ・ F \(ratio.fat)% ・ C \(ratio.carb)%")
+                    .font(FF.fontCaption)
+                    .monospacedDigit()
+                    .foregroundStyle(FF.textSecondary)
+            }
+            Text("タンパク質目標 \(proteinTarget)g（体重×1.6gの目安）")
                 .font(FF.fontCaption)
                 .foregroundStyle(FF.textTertiary)
         }
@@ -226,18 +326,23 @@ struct MealsView: View {
         .buttonStyle(.plain)
     }
 
-    // MARK: 最近の食事
+    // MARK: 選択日の食事
 
-    private var recentMeals: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            SectionHeader(title: "最近の食事", subtitle: store.meals.isEmpty ? nil : "長押しで削除できます")
+    private var dayMealsPanel: some View {
+        let dayMeals = selectedNutrition.meals
 
-            if store.meals.isEmpty {
+        return VStack(alignment: .leading, spacing: 12) {
+            SectionHeader(
+                title: isViewingToday ? "今日の食事" : "この日の食事",
+                subtitle: dayMeals.isEmpty ? nil : "長押しで削除できます"
+            )
+
+            if dayMeals.isEmpty {
                 VStack(spacing: 8) {
                     Image(systemName: "fork.knife.circle")
                         .font(.system(size: 28))
                         .foregroundStyle(FF.textTertiary)
-                    Text("まだ記録がありません。最初の食事を記録してみましょう")
+                    Text(isViewingToday ? "まだ記録がありません。最初の食事を記録してみましょう" : "この日の食事記録はありません")
                         .font(FF.fontCaption)
                         .foregroundStyle(FF.textSecondary)
                 }
@@ -245,9 +350,13 @@ struct MealsView: View {
                 .padding(.vertical, 24)
             }
 
-            ForEach(store.meals) { meal in
+            ForEach(dayMeals) { meal in
                 VStack(alignment: .leading, spacing: 10) {
                     HStack(spacing: 8) {
+                        Text(meal.date.formatted(date: .omitted, time: .shortened))
+                            .font(FF.fontCaption)
+                            .monospacedDigit()
+                            .foregroundStyle(FF.textSecondary)
                         Text(meal.title)
                             .font(.system(size: 15, weight: .semibold))
                             .foregroundStyle(FF.textPrimary)
@@ -277,6 +386,71 @@ struct MealsView: View {
                         Label("この記録を削除", systemImage: "trash")
                     }
                 }
+            }
+        }
+        .panelStyle()
+    }
+
+    // MARK: 過去の記録（日別一覧）
+
+    private func historyPanel(onSelect: @escaping (Date) -> Void) -> some View {
+        let days = store.recordedNutritionDays(limit: 30)
+        let proteinTarget = store.proteinTargetG
+        let selectedStart = selectedNutrition.lifeDayStart
+
+        return VStack(alignment: .leading, spacing: 10) {
+            SectionHeader(title: "過去の記録", subtitle: days.isEmpty ? nil : "日付をタップするとその日の内容を表示します")
+
+            if days.isEmpty {
+                Text("食事を記録すると、日ごとのカロリーとPFCがここに並びます")
+                    .font(FF.fontCaption)
+                    .foregroundStyle(FF.textSecondary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 16)
+            }
+
+            ForEach(days) { day in
+                let isSelected = day.lifeDayStart == selectedStart
+                Button {
+                    onSelect(day.lifeDayStart)
+                } label: {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(alignment: .firstTextBaseline) {
+                            Text(dayTitle(day.lifeDayStart))
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundStyle(FF.textPrimary)
+                            Text("\(day.meals.count)食")
+                                .font(FF.fontCaption)
+                                .foregroundStyle(FF.textSecondary)
+                            Spacer()
+                            Text("\(day.kcal) kcal")
+                                .font(.system(size: 15, weight: .semibold, design: .rounded))
+                                .monospacedDigit()
+                                .foregroundStyle(FF.intake)
+                        }
+                        PFCRow(protein: day.proteinG, fat: day.fatG, carb: day.carbG)
+                        GeometryReader { geo in
+                            ZStack(alignment: .leading) {
+                                Capsule().fill(FF.protein.opacity(0.12))
+                                Capsule()
+                                    .fill(FF.protein)
+                                    .frame(width: geo.size.width * min(1, Double(day.proteinG) / Double(max(1, proteinTarget))))
+                            }
+                        }
+                        .frame(height: 6)
+                        .accessibilityLabel("タンパク質 \(day.proteinG)g、目標 \(proteinTarget)g")
+                    }
+                    .padding(12)
+                    .background(
+                        isSelected ? FF.accentSoft : FF.surfaceSecondary.opacity(0.6),
+                        in: RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .stroke(isSelected ? FF.accent : .clear, lineWidth: 1.5)
+                    )
+                }
+                .buttonStyle(.plain)
             }
         }
         .panelStyle()

@@ -87,7 +87,32 @@ final class AppStore: ObservableObject {
     // MARK: 今日のサマリー（食事記録を正とする）
 
     var todayMeals: [MealLog] {
-        meals.filter { LifeDayService.isSameLifeDay($0.date, .now, preferences: preferences) }
+        meals(onLifeDay: .now)
+    }
+
+    func meals(onLifeDay date: Date) -> [MealLog] {
+        meals
+            .filter { LifeDayService.isSameLifeDay($0.date, date, preferences: preferences) }
+            .sorted { $0.date < $1.date }
+    }
+
+    func nutrition(onLifeDay date: Date) -> DailyNutrition {
+        DailyNutrition(
+            lifeDayStart: LifeDayService.startOfLifeDay(containing: date, preferences: preferences),
+            meals: meals(onLifeDay: date)
+        )
+    }
+
+    /// 食事記録のある生活日を新しい順に返す
+    func recordedNutritionDays(limit: Int) -> [DailyNutrition] {
+        let grouped = Dictionary(grouping: meals) {
+            LifeDayService.startOfLifeDay(containing: $0.date, preferences: preferences)
+        }
+        return grouped
+            .map { DailyNutrition(lifeDayStart: $0.key, meals: $0.value.sorted { $0.date < $1.date }) }
+            .sorted { $0.lifeDayStart > $1.lifeDayStart }
+            .prefix(limit)
+            .map { $0 }
     }
 
     var todayIntakeKcal: Int {
