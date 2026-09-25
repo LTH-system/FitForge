@@ -200,6 +200,9 @@ struct WorkoutSessionView: View {
         restRemaining = restTotal
         isResting = true
         completedCount += 1
+        if PersonalBestDetector.isBestWeight(saved, among: store.strengthSets) {
+            celebratingSet = saved
+        }
     }
 
     private func prefillFromPrevious() {

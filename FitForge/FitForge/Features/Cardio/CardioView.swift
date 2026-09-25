@@ -12,6 +12,7 @@ struct CardioView: View {
     @State private var rpe = 5
     @State private var sessionType = "easy"
     @State private var savedCount = 0
+    @State private var celebratingSession: CardioSession?
 
     private let sessionTypes = ["easy", "tempo", "interval", "long", "race", "hyrox"]
 
@@ -26,6 +27,9 @@ struct CardioView: View {
         }
         .background(FF.background)
         .sensoryFeedback(.success, trigger: savedCount)
+        .fullScreenCover(item: $celebratingSession) { session in
+            PersonalBestCelebrationView(celebrating: session, store: store)
+        }
     }
 
     // MARK: 記録を追加
@@ -92,6 +96,9 @@ struct CardioView: View {
                 try? modelContext.save()
                 note = ""
                 savedCount += 1
+                if PersonalBestDetector.isBestDistance(saved, among: store.cardioSessions) {
+                    celebratingSession = saved
+                }
             } label: {
                 Label("追加", systemImage: "plus.circle.fill")
             }

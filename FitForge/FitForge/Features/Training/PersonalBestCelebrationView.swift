@@ -26,6 +26,69 @@ struct PersonalBestCelebrationView: View {
         var isLatest: Bool
     }
 
+    init(exerciseTitle: String, valueText: String, unitText: String, badge: Badge?, trend: [TrendPoint], trendTitle: String, footerText: String) {
+        self.exerciseTitle = exerciseTitle
+        self.valueText = valueText
+        self.unitText = unitText
+        self.badge = badge
+        self.trend = trend
+        self.trendTitle = trendTitle
+        self.footerText = footerText
+    }
+
+    /// 筋トレの重量PB用
+    init(celebrating set: StrengthSet, store: AppStore) {
+        let allTrend = PersonalBestDetector.oneRepMaxTrend(exercise: set.exercise, among: store.strengthSets)
+        let previousBest1RM = allTrend.dropLast().map(\.value).max()
+
+        exerciseTitle = set.exercise
+        valueText = set.weightKg.formatted()
+        unitText = "kg × \(set.reps)回"
+        if let previousBest1RM {
+            let delta = set.estimatedOneRepMax - previousBest1RM
+            badge = Badge(
+                label: "推定1RM",
+                value: "\(set.estimatedOneRepMax.formatted(.number.precision(.fractionLength(1))))kg",
+                delta: "+\(delta.formatted(.number.precision(.fractionLength(1))))kg"
+            )
+        } else {
+            badge = nil
+        }
+        trend = Self.points(from: allTrend)
+        trendTitle = "推定1RMの推移"
+        footerText = Self.footer(store: store)
+    }
+
+    /// 有酸素（ラン・HYROX・マラソン）の距離PB用
+    init(celebrating session: CardioSession, store: AppStore) {
+        let allTrend = PersonalBestDetector.distanceTrend(kind: session.kind, among: store.cardioSessions)
+
+        exerciseTitle = session.kind.rawValue
+        valueText = session.distanceKm.formatted(.number.precision(.fractionLength(1)))
+        unitText = "km"
+        badge = Badge(label: "ペース", value: session.paceText, delta: "自己ベスト")
+        trend = Self.points(from: allTrend)
+        trendTitle = "距離の推移"
+        footerText = Self.footer(store: store)
+    }
+
+    private static func points(from trend: [(date: Date, value: Double)]) -> [TrendPoint] {
+        let formatter: DateFormatter = {
+            let f = DateFormatter()
+            f.locale = Locale(identifier: "ja_JP")
+            f.dateFormat = "M/d"
+            return f
+        }()
+        return trend.enumerated().map { index, item in
+            TrendPoint(dateLabel: formatter.string(from: item.date), value: item.value, isLatest: index == trend.count - 1)
+        }
+    }
+
+    private static func footer(store: AppStore) -> String {
+        let monthlyCount = PersonalBestDetector.monthlyBestCount(strengthSets: store.strengthSets, cardioSessions: store.cardioSessions)
+        return "\(store.currentStreak)日連続記録中 · 今月のベスト更新 \(monthlyCount)回目"
+    }
+
     var body: some View {
         ZStack {
             Color(hex: 0x15171B).ignoresSafeArea()

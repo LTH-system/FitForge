@@ -234,8 +234,7 @@ struct DashboardView: View {
                          detail: "P\($0.proteinG)g・F\($0.fatG)g・C\($0.carbG)g", trailing: "\($0.estimatedKcal) kcal")
         }
         let strength = store.strengthSets.filter { isToday($0.date) }.map { set in
-            let earlier = store.strengthSets.filter { $0.exercise == set.exercise && $0.date < set.date }
-            let isBest = !earlier.isEmpty && earlier.allSatisfy { $0.weightKg < set.weightKg }
+            let isBest = PersonalBestDetector.isBestWeight(set, among: store.strengthSets)
             return TimelineItem(id: set.id, date: set.date, icon: "dumbbell", color: FF.strength, title: set.exercise,
                                 detail: "\(set.weightKg.formatted())kg × \(set.reps)回 × \(set.sets)セット",
                                 badge: isBest ? "ベスト更新" : nil)

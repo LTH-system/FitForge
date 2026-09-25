@@ -15,6 +15,7 @@ struct TrainingView: View {
     @State private var note = ""
     @State private var selectedCategory: ExerciseCategory?
     @State private var savedCount = 0
+    @State private var celebratingSet: StrengthSet?
 
     /// 記録済み種目のみ表示する。カタログ全70種をセグメントに並べると幅が壊れるため。
     var exercises: [String] {
@@ -47,6 +48,9 @@ struct TrainingView: View {
         .sensoryFeedback(.success, trigger: savedCount)
         .onAppear { prefillFromLastSet() }
         .onChange(of: exerciseName) { prefillFromLastSet() }
+        .fullScreenCover(item: $celebratingSet) { set in
+            PersonalBestCelebrationView(celebrating: set, store: store)
+        }
     }
 
     /// 種目を切り替えたら前回の重量・回数・セットをプリフィルする
@@ -185,6 +189,9 @@ struct TrainingView: View {
                     selectedExercise = exerciseName
                     note = ""
                     savedCount += 1
+                    if PersonalBestDetector.isBestWeight(saved, among: store.strengthSets) {
+                        celebratingSet = saved
+                    }
                 } label: {
                     Label("追加", systemImage: "plus.circle.fill")
                 }
