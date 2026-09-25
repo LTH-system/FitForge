@@ -5,6 +5,7 @@ struct GoalsView: View {
     @EnvironmentObject private var store: AppStore
     @State private var isEditingGoal = false
     @State private var isEditingBody = false
+    @State private var isWeeklyReviewPresented = false
 
     var body: some View {
         ScrollView {
@@ -12,6 +13,7 @@ struct GoalsView: View {
                 if store.preferences.bodyProfile == nil {
                     profilePrompt
                 }
+                weeklyReviewEntry
                 routePanel
                 pacePanel
                 budgetPanel
@@ -36,6 +38,9 @@ struct GoalsView: View {
             GoalEditorView()
                 .presentationDetents([.medium])
         }
+        .sheet(isPresented: $isWeeklyReviewPresented) {
+            WeeklyReviewView()
+        }
         .sheet(isPresented: $isEditingBody) {
             BodyProfileEditorView()
                 .presentationDetents([.medium, .large])
@@ -43,6 +48,33 @@ struct GoalsView: View {
     }
 
     // MARK: 身体情報の入力のお願い（既存ユーザー向け）
+
+    // MARK: 週次ふりかえりの入口
+
+    private var weeklyReviewEntry: some View {
+        Button {
+            isWeeklyReviewPresented = true
+        } label: {
+            HStack(spacing: 10) {
+                IconSeat(systemName: "chart.bar.doc.horizontal", color: FF.accent, size: 34)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("今週のふりかえり")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(FF.textPrimary)
+                    Text("体重の変化・平均摂取・自己ベストをまとめて見る")
+                        .font(FF.fontCaption)
+                        .foregroundStyle(FF.textSecondary)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(FF.textTertiary)
+            }
+            .padding(12)
+            .background(FF.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        }
+        .buttonStyle(.plain)
+    }
 
     private var profilePrompt: some View {
         HStack(alignment: .top, spacing: 12) {

@@ -582,6 +582,64 @@ final class AppStore: ObservableObject {
     // MARK: 連続記録
 
     /// 自分で何かを記録した生活日（HealthKitから自動で入った体重は含めない）
+    // MARK: 週次ふりかえり
+
+    struct WeeklySummary {
+        var interval: DateInterval
+        var averageIntakeKcal: Int
+        var recordedDayCount: Int
+        var ringsClosedDayCount: Int
+        var predictedWeightDeltaKg: Double
+        var actualWeightDeltaKg: Double
+        var bestCount: Int
+        var bestHighlights: [String]
+        var budgetKcal: Int
+        var arrivalDate: Date?
+    }
+
+    /// 直近7日（今日を含む）のふりかえり
+    var weeklySummary: WeeklySummary {
+        let interval = LifeDayService.recentLifeDayInterval(days: 7, preferences: preferences)
+        let days = (0..<7).compactMap { offset -> Date? in
+            Calendar.current.date(byAdding: .day, value: -offset, to: LifeDayService.startOfLifeDay(containing: .now, preferences: preferences))
+        }
+
+        let intakeKcals = days.map { nutrition(onLifeDay: $0).kcal }.filter { $0 > 0 }
+        let averageIntake = intakeKcals.isEmpty ? 0 : intakeKcals.reduce(0, +) / intakeKcals.count
+
+        let recordedCount = recordedLifeDays.filter { interval.contains($0) }.count
+
+        let stepGoal = 8_000
+        let ringsClosedCount = days.filter { day in
+            let dayNutrition = nutrition(onLifeDay: day)
+            guard dayNutrition.kcal > 0 else { return false }
+            let steps = ledgers.first { LifeDayService.isSameLifeDay($0.date, day, preferences: preferences) }?.stepCount ?? 0
+            return dayNutrition.kcal <= dailyCalorieBudget && dayNutrition.proteinG >= proteinTargetG && steps >= stepGoal
+        }.count
+
+        let strengthBests = strengthSets
+            .filter { interval.contains($0.date) && PersonalBestDetector.isBestWeight($0, among: strengthSets) }
+        let cardioBests = cardioSessions
+            .filter { interval.contains($0.date) && PersonalBestDetector.isBestDistance($0, among: cardioSessions) }
+        let highlights = (strengthBests.map { "\($0.exercise) \($0.weightKg.formatted())kg" }
+            + cardioBests.map { "\($0.kind.rawValue) \($0.distanceKm.formatted(.number.precision(.fractionLength(1))))km" })
+            .prefix(2)
+
+        let plan = budgetPlan
+        return WeeklySummary(
+            interval: interval,
+            averageIntakeKcal: averageIntake,
+            recordedDayCount: recordedCount,
+            ringsClosedDayCount: ringsClosedCount,
+            predictedWeightDeltaKg: predictedWeightDeltaKg(from: sevenDayBalance),
+            actualWeightDeltaKg: actualWeightDeltaKg(days: 7),
+            bestCount: strengthBests.count + cardioBests.count,
+            bestHighlights: Array(highlights),
+            budgetKcal: plan.budgetKcal,
+            arrivalDate: plan.arrivalDate
+        )
+    }
+
     var recordedLifeDays: Set<Date> {
         let dates = meals.map(\.date)
             + strengthSets.map(\.date)
