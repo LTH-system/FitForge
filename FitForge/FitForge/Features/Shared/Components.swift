@@ -26,7 +26,7 @@ struct FFPrimaryButtonStyle: ButtonStyle {
             .foregroundStyle(.white)
             .frame(maxWidth: .infinity)
             .frame(height: 54)
-            .background(FF.accentGradient, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .background(FF.ctaGradient, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             .shadow(color: FF.accent.opacity(0.3), radius: 12, y: 6)
             .scaleEffect(configuration.isPressed ? 0.97 : 1)
             .animation(.spring(response: 0.3, dampingFraction: 0.7), value: configuration.isPressed)

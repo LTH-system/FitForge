@@ -38,12 +38,22 @@ enum FF {
         light: Color(hex: 0xFF6B4A).opacity(0.12),
         dark: Color(hex: 0xFF7E5C).opacity(0.18)
     )
-    /// CTA・ヒーロー要素専用。常に topLeading → bottomTrailing
+    /// ヒーロー要素（リング・装飾）専用。常に topLeading → bottomTrailing
     static let accentGradient = LinearGradient(
         colors: [gradientStart, gradientEnd],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
+    /// 白文字を載せるCTA用。accentGradientだと白文字のコントラストが足りないため濃くしている
+    static let ctaGradient = LinearGradient(
+        colors: [Color(hex: 0xCC4A26), Color(hex: 0xC4385A)],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+    /// 白文字を載せる単色の塗り（小さなボタン・アイコン台座）
+    static let ctaSolid = Color(hex: 0xCC4A26)
+    /// アクセント色の文字。背景とのコントラストを確保した濃さ
+    static let accentText = Color(light: Color(hex: 0xB23A1C), dark: Color(hex: 0xFF9D75))
 
     // MARK: 機能色 — カロリー（「赤=悪」を使わない。超過はアンバー）
     static let intake = Color(light: Color(hex: 0xFF8A5C), dark: Color(hex: 0xFF9D75))
