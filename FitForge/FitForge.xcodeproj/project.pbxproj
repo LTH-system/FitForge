@@ -35,6 +35,7 @@
 		00000000000000000000011A /* TrainingHubView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000021C /* TrainingHubView.swift */; };
 		00000000000000000000011B /* QuickAddSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000021D /* QuickAddSheet.swift */; };
 		00000000000000000000011C /* StreakCalculator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000021E /* StreakCalculator.swift */; };
+		00000000000000000000011D /* WorkoutSessionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000021F /* WorkoutSessionView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -69,6 +70,7 @@
 		00000000000000000000021C /* TrainingHubView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Features/Training/TrainingHubView.swift; sourceTree = "<group>"; };
 		00000000000000000000021D /* QuickAddSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Features/QuickAdd/QuickAddSheet.swift; sourceTree = "<group>"; };
 		00000000000000000000021E /* StreakCalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Services/StreakCalculator.swift; sourceTree = "<group>"; };
+		00000000000000000000021F /* WorkoutSessionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Features/Training/WorkoutSessionView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -121,6 +123,7 @@
 				00000000000000000000021C /* TrainingHubView.swift */,
 				00000000000000000000021D /* QuickAddSheet.swift */,
 				00000000000000000000021E /* StreakCalculator.swift */,
+				00000000000000000000021F /* WorkoutSessionView.swift */,
 				00000000000000000000020F /* Info.plist */,
 				000000000000000000000210 /* FitForge.entitlements */,
 			);
@@ -232,6 +235,7 @@
 				00000000000000000000011A /* TrainingHubView.swift in Sources */,
 				00000000000000000000011B /* QuickAddSheet.swift in Sources */,
 				00000000000000000000011C /* StreakCalculator.swift in Sources */,
+				00000000000000000000011D /* WorkoutSessionView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

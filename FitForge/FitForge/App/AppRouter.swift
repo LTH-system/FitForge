@@ -21,9 +21,14 @@ final class AppRouter: ObservableObject {
     @Published var selectedTab: AppTab = .today
     @Published var trainingMode: TrainingMode = .strength
     @Published var isQuickAddPresented = false
+    @Published var workoutSessionExercise: String?
 
     func open(_ tab: AppTab) {
         selectedTab = tab
+    }
+
+    func startWorkoutSession(exercise: String) {
+        workoutSessionExercise = exercise
     }
 
     func openTraining(_ mode: TrainingMode) {

@@ -4,6 +4,7 @@ import SwiftData
 
 struct TrainingView: View {
     @EnvironmentObject private var store: AppStore
+    @EnvironmentObject private var router: AppRouter
     @Environment(\.modelContext) private var modelContext
     @State private var selectedExercise = "ベンチプレス"
     @State private var exerciseName = "ベンチプレス"
@@ -168,18 +169,28 @@ struct TrainingView: View {
             TextField("メモ 例: フォーム、疲労感、痛みなし", text: $note)
                 .ffFieldStyle()
 
-            Button {
-                let saved = store.addStrengthSet(exercise: exerciseName, weightKg: weightKg, reps: reps, sets: sets, rpe: rpe, note: note)
-                modelContext.insert(StrengthSetEntry(from: saved))
-                try? modelContext.save()
-                selectedExercise = exerciseName
-                note = ""
-                savedCount += 1
-            } label: {
-                Label("追加", systemImage: "plus.circle.fill")
+            HStack(spacing: 10) {
+                Button {
+                    router.startWorkoutSession(exercise: exerciseName)
+                } label: {
+                    Label("セッションで記録", systemImage: "timer")
+                }
+                .buttonStyle(FFSecondaryButtonStyle(tint: FF.strength))
+                .disabled(exerciseName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+
+                Button {
+                    let saved = store.addStrengthSet(exercise: exerciseName, weightKg: weightKg, reps: reps, sets: sets, rpe: rpe, note: note)
+                    modelContext.insert(StrengthSetEntry(from: saved))
+                    try? modelContext.save()
+                    selectedExercise = exerciseName
+                    note = ""
+                    savedCount += 1
+                } label: {
+                    Label("追加", systemImage: "plus.circle.fill")
+                }
+                .buttonStyle(FFPrimaryButtonStyle())
+                .disabled(exerciseName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
-            .buttonStyle(FFPrimaryButtonStyle())
-            .disabled(exerciseName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         }
         .panelStyle()
     }

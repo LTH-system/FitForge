@@ -245,6 +245,19 @@ final class AppStore: ObservableObject {
         return (sessions.map(\.calories).reduce(0, +), sessions.map(\.distanceKm).reduce(0, +))
     }
 
+    /// 1セットあたりの目安時間（セット+休憩を含む）。METs 5.0の筋トレとして消費カロリーを見積もる
+    private let strengthMinutesPerSet = 3.0
+    private let strengthMETs = 5.0
+
+    private func strengthKcal(on date: Date) -> Int {
+        let totalSets = strengthSets
+            .filter { LifeDayService.isSameLifeDay($0.date, date, preferences: preferences) }
+            .map(\.sets)
+            .reduce(0, +)
+        let hours = Double(totalSets) * strengthMinutesPerSet / 60
+        return Int(strengthMETs * latestWeight * hours)
+    }
+
     /// 歩数から推定した消費カロリー。ランニング等ですでに手入力済みの距離分の歩数は除外し、二重計上を防ぐ
     private func stepsKcal(stepCount: Int, excludingRunKm: Double) -> Int {
         let runSteps = excludingRunKm * cardioStepsPerKm
@@ -259,14 +272,15 @@ final class AppStore: ObservableObject {
     /// その日の消費カロリー。基礎代謝(HealthKit実測 or 推定) + 歩数由来の活動カロリー + 手入力の筋トレ/有酸素記録を合算する
     func expenditureKcal(for date: Date) -> Int {
         let cardio = cardioTotals(on: date)
+        let strength = strengthKcal(on: date)
 
         guard let ledger = ledger(on: date), ledger.basalKcal > 0 || ledger.stepCount > 0 else {
-            return estimatedMaintenanceKcal + cardio.kcal
+            return estimatedMaintenanceKcal + cardio.kcal + strength
         }
 
         let basal = ledger.basalKcal > 0 ? ledger.basalKcal : estimatedBasalKcal
         let steps = stepsKcal(stepCount: ledger.stepCount, excludingRunKm: cardio.distanceKm)
-        return basal + steps + cardio.kcal
+        return basal + steps + cardio.kcal + strength
     }
 
     /// HealthKitの実測データがなく、体重ベースの推定値にフォールバックしているかどうか

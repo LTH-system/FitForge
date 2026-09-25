@@ -15,6 +15,10 @@ struct QuickAddSheet: View {
 
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 10), count: 3)
 
+    private var lastExercise: String {
+        store.strengthSets.max { $0.date < $1.date }?.exercise ?? "ベンチプレス"
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -28,9 +32,9 @@ struct QuickAddSheet: View {
                                 isWeightExpanded.toggle()
                             }
                         }
-                        tile("筋トレ", detail: "重量・回数", icon: "dumbbell", color: FF.strength) {
-                            router.trainingMode = .strength
-                            go(to: .training)
+                        tile("筋トレ開始", detail: store.strengthSets.isEmpty ? "セットを記録" : "前回：\(lastExercise)", icon: "dumbbell", color: FF.strength) {
+                            dismiss()
+                            router.startWorkoutSession(exercise: lastExercise)
                         }
                         tile("ラン・運動", detail: "距離・時間", icon: "figure.run", color: FF.run) {
                             router.trainingMode = .cardio
