@@ -619,7 +619,7 @@ final class AppStore: ObservableObject {
 
         if remaining < 0 {
             return NextAction(
-                title: "今日は予算を \(abs(remaining))kcal 超えています",
+                title: "今日は目標摂取カロリーを \(abs(remaining))kcal 超えています",
                 detail: "ここからは軽めで大丈夫。1日で取り返そうとせず、週の平均で整えていきましょう。",
                 kind: .rest
             )
@@ -636,7 +636,7 @@ final class AppStore: ObservableObject {
         if hour >= 21 && proteinLeft == 0 {
             return NextAction(
                 title: "今日の食事はばっちりです",
-                detail: "予算内でたんぱく質も目標に届きました。このまま休みましょう。",
+                detail: "目標摂取カロリー内でたんぱく質も目標に届きました。このまま休みましょう。",
                 kind: .rest
             )
         }

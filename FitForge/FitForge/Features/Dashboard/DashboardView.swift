@@ -67,7 +67,7 @@ struct DashboardView: View {
         }
     }
 
-    // MARK: - ヒーロー（3つのリングと残り予算）
+    // MARK: - ヒーロー（3つのリングと残りカロリー）
 
     private var heroPanel: some View {
         let budget = store.dailyCalorieBudget
@@ -92,7 +92,7 @@ struct DashboardView: View {
 
                 VStack(alignment: .leading, spacing: 10) {
                     VStack(alignment: .leading, spacing: 0) {
-                        Text(remaining >= 0 ? "残り予算" : "予算オーバー")
+                        Text(remaining >= 0 ? "残りカロリー" : "カロリー超過")
                             .font(FF.fontCaption)
                             .foregroundStyle(FF.textSecondary)
                         HStack(alignment: .lastTextBaseline, spacing: 3) {

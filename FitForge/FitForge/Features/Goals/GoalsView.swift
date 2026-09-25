@@ -48,7 +48,7 @@ struct GoalsView: View {
         HStack(alignment: .top, spacing: 12) {
             IconSeat(systemName: "person.text.rectangle", color: FF.accent, size: 36)
             VStack(alignment: .leading, spacing: 6) {
-                Text("からだの情報を入れると予算が正確になります")
+                Text("からだの情報を入れると目標摂取カロリーが正確になります")
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(FF.textPrimary)
                 Text("今は体重だけで基礎代謝を推定しています。性別・年齢・身長から計算し直します。")
@@ -201,29 +201,29 @@ struct GoalsView: View {
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
-    // MARK: 予算の内訳
+    // MARK: 目標摂取カロリーの内訳
 
     private var budgetPanel: some View {
         let plan = store.budgetPlan
         let isLoss = plan.dailyDeltaKcal < 0
 
         return VStack(alignment: .leading, spacing: 12) {
-            SectionHeader(title: "1日の予算の決まり方")
+            SectionHeader(title: "目標摂取カロリーの決まり方")
             HStack(spacing: 6) {
                 budgetBox("推定消費", "\(plan.maintenanceKcal)", color: FF.burn)
                 Text(isLoss ? "−" : "+")
                     .foregroundStyle(FF.textSecondary)
-                budgetBox(isLoss ? "目標の赤字" : "目標の上乗せ", "\(abs(plan.dailyDeltaKcal))", color: FF.textSecondary)
+                budgetBox(isLoss ? "ペースの赤字" : "ペースの上乗せ", "\(abs(plan.dailyDeltaKcal))", color: FF.textSecondary)
                 Text("=")
                     .foregroundStyle(FF.textSecondary)
-                budgetBox("1日の予算", "\(plan.budgetKcal)", color: FF.accentText, emphasized: true)
+                budgetBox("摂取目標", "\(plan.budgetKcal)", color: FF.accentText, emphasized: true)
             }
             Text(basalExplanation(plan))
                 .font(FF.fontCaption)
                 .lineSpacing(3)
                 .foregroundStyle(FF.textSecondary)
             if plan.isFlooredAtBasal {
-                Label("このペースだと基礎代謝（\(plan.basalKcal)kcal）を下回るため、予算を基礎代謝に合わせています。到着予定はこの予算で計算しています。", systemImage: "info.circle")
+                Label("このペースだと基礎代謝（\(plan.basalKcal)kcal）を下回るため、目標摂取カロリーを基礎代謝に合わせています。到着予定はこの目標摂取カロリーで計算しています。", systemImage: "info.circle")
                     .font(FF.fontCaption)
                     .lineSpacing(3)
                     .foregroundStyle(FF.over)
@@ -415,7 +415,7 @@ struct GoalEditorView: View {
                     onMinus: { targetWeightKg = max(30, targetWeightKg - 0.1) },
                     onPlus: { targetWeightKg = min(200, targetWeightKg + 0.1) }
                 )
-                Text("保存すると、今の体重を新しいスタート地点にして予算と到着予定を計算し直します。")
+                Text("保存すると、今の体重を新しいスタート地点にして目標摂取カロリーと到着予定を計算し直します。")
                     .font(FF.fontCaption)
                     .foregroundStyle(FF.textSecondary)
                 Spacer()

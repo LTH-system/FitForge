@@ -167,7 +167,7 @@ struct OnboardingView: View {
         let plan = previewPlan
         return VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .lastTextBaseline, spacing: 4) {
-                Text("1日の予算の目安")
+                Text("1日の目標摂取カロリー")
                     .font(FF.fontCaption)
                     .foregroundStyle(FF.textSecondary)
                 Spacer()
@@ -185,7 +185,7 @@ struct OnboardingView: View {
                     .foregroundStyle(FF.textSecondary)
             }
             if plan.isFlooredAtBasal {
-                Text("このペースだと基礎代謝（\(plan.basalKcal)kcal）を下回るため、予算を基礎代謝に合わせています。")
+                Text("このペースだと基礎代謝（\(plan.basalKcal)kcal）を下回るため、目標摂取カロリーを基礎代謝に合わせています。")
                     .font(FF.fontCaption)
                     .foregroundStyle(FF.over)
             }
@@ -196,7 +196,7 @@ struct OnboardingView: View {
 
     private var bodySection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SectionHeader(title: "からだの情報", subtitle: "基礎代謝を計算して、1日の予算を決めるために使います")
+            SectionHeader(title: "からだの情報", subtitle: "基礎代謝を計算して、1日の目標摂取カロリーを決めるために使います")
             VStack(alignment: .leading, spacing: 6) {
                 Text("性別（計算式に使用）")
                     .font(FF.fontCaption.weight(.medium))

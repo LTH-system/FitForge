@@ -19,6 +19,7 @@ struct WorkoutSessionView: View {
     @State private var restTotal = 120
     @State private var completedCount = 0
     @State private var now = Date.now
+    @State private var celebratingSet: StrengthSet?
 
     private let clock = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
@@ -84,6 +85,9 @@ struct WorkoutSessionView: View {
                 }
             }
             .sensoryFeedback(.success, trigger: completedCount)
+            .fullScreenCover(item: $celebratingSet) { set in
+                PersonalBestCelebrationView(celebrating: set, store: store)
+            }
         }
     }
 

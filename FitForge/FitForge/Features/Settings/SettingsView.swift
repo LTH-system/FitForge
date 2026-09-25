@@ -51,12 +51,12 @@ struct SettingsView: View {
         let plan = store.budgetPlan
 
         return VStack(alignment: .leading, spacing: 12) {
-            SectionHeader(title: "プロフィール", subtitle: "1日の予算の計算に使います")
+            SectionHeader(title: "プロフィール", subtitle: "1日の目標摂取カロリーの計算に使います")
 
             profileRow("からだ", profile.map { "\($0.sex.rawValue)・\($0.age())歳・\(Int($0.heightCm))cm" } ?? "未入力")
             profileRow("運動する回数", "週 \(store.preferences.onboarding.weeklyWorkoutDays) 回")
             profileRow("目標体重", String(format: "%.1fkg（%@）", store.goal.targetWeightKg, store.goal.pace.label))
-            profileRow("基礎代謝 / 1日の予算", "\(plan.basalKcal) / \(plan.budgetKcal) kcal")
+            profileRow("基礎代謝 / 目標摂取カロリー", "\(plan.basalKcal) / \(plan.budgetKcal) kcal")
 
             HStack(spacing: 10) {
                 Button("からだの情報を変更") { isEditingBody = true }
