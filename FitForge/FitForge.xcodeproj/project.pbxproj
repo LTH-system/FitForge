@@ -40,6 +40,9 @@
 		00000000000000000000011F /* PersonalBestCelebrationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000221 /* PersonalBestCelebrationView.swift */; };
 		000000000000000000000120 /* WeeklyReviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000222 /* WeeklyReviewView.swift */; };
 		000000000000000000000121 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000223 /* NotificationService.swift */; };
+		000000000000000000000122 /* BarcodeFoodClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000224 /* BarcodeFoodClient.swift */; };
+		000000000000000000000123 /* BarcodeScannerRepresentable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000225 /* BarcodeScannerRepresentable.swift */; };
+		000000000000000000000124 /* BarcodeMealSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000226 /* BarcodeMealSheet.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -79,6 +82,9 @@
 		000000000000000000000221 /* PersonalBestCelebrationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Features/Training/PersonalBestCelebrationView.swift; sourceTree = "<group>"; };
 		000000000000000000000222 /* WeeklyReviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Features/Progress/WeeklyReviewView.swift; sourceTree = "<group>"; };
 		000000000000000000000223 /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Services/NotificationService.swift; sourceTree = "<group>"; };
+		000000000000000000000224 /* BarcodeFoodClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Services/BarcodeFoodClient.swift; sourceTree = "<group>"; };
+		000000000000000000000225 /* BarcodeScannerRepresentable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Features/Meals/BarcodeScannerRepresentable.swift; sourceTree = "<group>"; };
+		000000000000000000000226 /* BarcodeMealSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Features/Meals/BarcodeMealSheet.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -136,6 +142,9 @@
 				000000000000000000000221 /* PersonalBestCelebrationView.swift */,
 				000000000000000000000222 /* WeeklyReviewView.swift */,
 				000000000000000000000223 /* NotificationService.swift */,
+				000000000000000000000224 /* BarcodeFoodClient.swift */,
+				000000000000000000000225 /* BarcodeScannerRepresentable.swift */,
+				000000000000000000000226 /* BarcodeMealSheet.swift */,
 				00000000000000000000020F /* Info.plist */,
 				000000000000000000000210 /* FitForge.entitlements */,
 			);
@@ -252,6 +261,9 @@
 				00000000000000000000011F /* PersonalBestCelebrationView.swift in Sources */,
 				000000000000000000000120 /* WeeklyReviewView.swift in Sources */,
 				000000000000000000000121 /* NotificationService.swift in Sources */,
+				000000000000000000000122 /* BarcodeFoodClient.swift in Sources */,
+				000000000000000000000123 /* BarcodeScannerRepresentable.swift in Sources */,
+				000000000000000000000124 /* BarcodeMealSheet.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

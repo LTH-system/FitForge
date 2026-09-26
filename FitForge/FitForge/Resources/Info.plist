@@ -21,7 +21,7 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>食事写真を解析してカロリーとPFCバランスを推定するために使用します。</string>
+	<string>食事写真の解析や、商品のバーコード読み取りによる栄養情報の取得に使用します。</string>
 	<key>NSHealthShareUsageDescription</key>
 	<string>体重、歩数、消費カロリー、ワークアウトを読み取り、健康と運動の記録に反映します。</string>
 	<key>NSPhotoLibraryUsageDescription</key>

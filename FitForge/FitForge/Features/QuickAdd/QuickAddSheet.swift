@@ -10,6 +10,7 @@ struct QuickAddSheet: View {
     @State private var isWeightExpanded = false
     @State private var weightInput = 0.0
     @State private var isCheckInPresented = false
+    @State private var isBarcodePresented = false
     @State private var savedCount = 0
     @State private var justSavedTitle: String?
 
@@ -26,6 +27,9 @@ struct QuickAddSheet: View {
                     LazyVGrid(columns: columns, spacing: 10) {
                         tile("食事", detail: "文章で記録", icon: "fork.knife", color: FF.intake) {
                             go(to: .meals)
+                        }
+                        tile("バーコード", detail: "商品を読み取り", icon: "barcode.viewfinder", color: FF.carb) {
+                            isBarcodePresented = true
                         }
                         tile("体重", detail: String(format: "前回 %.1fkg", store.latestWeight), icon: "scalemass", color: FF.burn, isSelected: isWeightExpanded) {
                             withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
@@ -66,6 +70,9 @@ struct QuickAddSheet: View {
             .sheet(isPresented: $isCheckInPresented) {
                 CheckInSheet()
                     .presentationDetents([.medium])
+            }
+            .fullScreenCover(isPresented: $isBarcodePresented) {
+                BarcodeMealSheet()
             }
             .onAppear { weightInput = store.latestWeight }
         }
