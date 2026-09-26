@@ -500,8 +500,9 @@ final class AppStore: ObservableObject {
         }
     }
 
-    func updatePreferences(languageCode: String, dayStartHour: Int, dayStartMinute: Int) {
-        preferences.languageCode = languageCode
+    func updatePreferences(dayStartHour: Int, dayStartMinute: Int) {
+        // アプリは日本語専用。以前のバージョンで英語を選んでいた場合も日本語に戻す
+        preferences.languageCode = "ja"
         preferences.dayStartHour = dayStartHour
         preferences.dayStartMinute = dayStartMinute
         save()

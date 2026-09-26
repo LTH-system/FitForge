@@ -22,7 +22,6 @@
 		00000000000000000000010C /* GoalsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000020C /* GoalsView.swift */; };
 		00000000000000000000010D /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000020D /* SettingsView.swift */; };
 		00000000000000000000010E /* Components.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000020E /* Components.swift */; };
-		000000000000000000000110 /* Localizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000212 /* Localizer.swift */; };
 		000000000000000000000111 /* LifeDayService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000213 /* LifeDayService.swift */; };
 		000000000000000000000112 /* ExerciseCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000214 /* ExerciseCatalog.swift */; };
 		000000000000000000000113 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000215 /* OnboardingView.swift */; };
@@ -65,7 +64,6 @@
 		00000000000000000000020F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Resources/Info.plist; sourceTree = "<group>"; };
 		000000000000000000000210 /* FitForge.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = FitForge.entitlements; sourceTree = "<group>"; };
 		000000000000000000000211 /* PersistenceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Services/PersistenceService.swift; sourceTree = "<group>"; };
-		000000000000000000000212 /* Localizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Services/Localizer.swift; sourceTree = "<group>"; };
 		000000000000000000000213 /* LifeDayService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Services/LifeDayService.swift; sourceTree = "<group>"; };
 		000000000000000000000214 /* ExerciseCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/ExerciseCatalog.swift; sourceTree = "<group>"; };
 		000000000000000000000215 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Features/Onboarding/OnboardingView.swift; sourceTree = "<group>"; };
@@ -122,7 +120,6 @@
 				000000000000000000000206 /* HealthKitService.swift */,
 				000000000000000000000207 /* SampleData.swift */,
 				000000000000000000000211 /* PersistenceService.swift */,
-				000000000000000000000212 /* Localizer.swift */,
 				000000000000000000000213 /* LifeDayService.swift */,
 				000000000000000000000217 /* SwiftDataBridge.swift */,
 				000000000000000000000215 /* OnboardingView.swift */,
@@ -246,7 +243,6 @@
 				00000000000000000000010C /* GoalsView.swift in Sources */,
 				00000000000000000000010D /* SettingsView.swift in Sources */,
 				00000000000000000000010E /* Components.swift in Sources */,
-				000000000000000000000110 /* Localizer.swift in Sources */,
 				000000000000000000000111 /* LifeDayService.swift in Sources */,
 				000000000000000000000112 /* ExerciseCatalog.swift in Sources */,
 				000000000000000000000113 /* OnboardingView.swift in Sources */,

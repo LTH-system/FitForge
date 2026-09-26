@@ -328,6 +328,7 @@ struct NotificationSettings: Hashable, Codable {
 }
 
 struct UserPreferences: Hashable, Codable {
+    /// アプリは日本語専用。既存データを読めるように項目だけ残している
     var languageCode: String
     var dayStartHour: Int
     var dayStartMinute: Int

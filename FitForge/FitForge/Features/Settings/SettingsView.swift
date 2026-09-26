@@ -6,7 +6,6 @@ struct SettingsView: View {
     @EnvironmentObject private var healthKit: HealthKitService
     @EnvironmentObject private var cloudBackup: CloudBackupService
     @Environment(\.modelContext) private var modelContext
-    @State private var selectedLanguage = "ja"
     @State private var dayStartHour = 5
     @State private var dayStartMinute = 0
     @State private var mealAIEndpointURLString = ""
@@ -22,7 +21,6 @@ struct SettingsView: View {
         ScrollView {
             VStack(spacing: 12) {
                 profilePanel
-                languagePanel
                 lifeDayPanel
                 notificationPanel
                 healthKitPanel
@@ -44,7 +42,6 @@ struct SettingsView: View {
                 .presentationDetents([.medium])
         }
         .onAppear {
-            selectedLanguage = store.preferences.languageCode
             dayStartHour = store.preferences.dayStartHour
             dayStartMinute = store.preferences.dayStartMinute
             mealAIEndpointURLString = store.preferences.mealAIEndpointURLString
@@ -149,33 +146,14 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: 言語
-
-    private var languagePanel: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            SectionHeader(title: L10n.text("language", languageCode: store.preferences.languageCode))
-
-            FFSegmentedPicker(
-                options: AppLanguage.allCases.map(\.rawValue),
-                label: { code in AppLanguage(rawValue: code)?.displayName ?? code },
-                selection: $selectedLanguage
-            )
-
-            Text(L10n.text("japanese_first", languageCode: store.preferences.languageCode))
-                .font(FF.fontCaption)
-                .foregroundStyle(FF.textSecondary)
-        }
-        .panelStyle()
-    }
-
     // MARK: 生活日
 
     private var lifeDayPanel: some View {
         VStack(alignment: .leading, spacing: 14) {
-            SectionHeader(title: L10n.text("life_day", languageCode: store.preferences.languageCode))
+            SectionHeader(title: "1日の区切り")
 
             FFStepperRow(
-                label: L10n.text("wake_time", languageCode: store.preferences.languageCode),
+                label: "起床時刻",
                 valueText: "\(dayStartHour):\(String(format: "%02d", dayStartMinute))",
                 onMinus: { dayStartHour = max(0, dayStartHour - 1) },
                 onPlus: { dayStartHour = min(23, dayStartHour + 1) }
@@ -187,13 +165,12 @@ struct SettingsView: View {
                 selection: $dayStartMinute
             )
 
-            Text(L10n.text("life_day_detail", languageCode: store.preferences.languageCode))
+            Text("起床時刻に合わせて、深夜の記録を前日扱いにできます。")
                 .font(FF.fontCaption)
                 .foregroundStyle(FF.textSecondary)
 
             Button("設定を保存") {
                 store.updatePreferences(
-                    languageCode: selectedLanguage,
                     dayStartHour: dayStartHour,
                     dayStartMinute: dayStartMinute
                 )
@@ -378,7 +355,6 @@ struct SettingsView: View {
         restoreResultMessage = nil
         do {
             try await cloudBackup.restoreLatest(into: store, context: modelContext)
-            selectedLanguage = store.preferences.languageCode
             dayStartHour = store.preferences.dayStartHour
             dayStartMinute = store.preferences.dayStartMinute
             notificationSettings = store.preferences.notificationSettings

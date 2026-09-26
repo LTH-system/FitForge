@@ -535,7 +535,7 @@ struct MealsView: View {
         let result = await ai.analyze(
             description: description,
             endpointURLString: store.preferences.mealAIEndpointURLString,
-            locale: store.preferences.languageCode
+            locale: "ja"
         )
         pendingMeal = result
         editableTitle = result.title
