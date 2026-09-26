@@ -515,6 +515,8 @@ final class AppStore: ObservableObject {
         }
 
         if let bodyMassKg {
+            // 同期のたびに追加すると同じ日の体重が何件も並ぶので、その生活日のヘルスケア由来の体重は1件にまとめる
+            bodyMetrics.removeAll { $0.source == .healthKit && LifeDayService.isSameLifeDay($0.date, today, preferences: preferences) }
             bodyMetrics.append(BodyMetric(
                 date: .now,
                 weightKg: bodyMassKg,
@@ -525,6 +527,48 @@ final class AppStore: ObservableObject {
         }
 
         syncGoalWithBudget()
+        save()
+    }
+
+    /// 以前の同期で重なったデータを片付ける。台帳は生活日ごとに1件、ヘルスケア由来の体重も生活日ごとに最新の1件にする
+    func removeDuplicateSyncedRecords() {
+        var changed = false
+
+        var ledgerIndexByDay: [Date: Int] = [:]
+        var mergedLedgers: [CalorieLedger] = []
+        for ledger in ledgers.sorted(by: { $0.date < $1.date }) {
+            let day = LifeDayService.startOfLifeDay(containing: ledger.date, preferences: preferences)
+            if let index = ledgerIndexByDay[day] {
+                // 同じ日が重なっていたら、歩数・消費の大きい方（あとから同期した方）を残し、摂取は多い方を採る
+                var kept = mergedLedgers[index]
+                if (ledger.stepCount, ledger.activeKcal) > (kept.stepCount, kept.activeKcal) {
+                    let intake = max(kept.intakeKcal, ledger.intakeKcal)
+                    kept = ledger
+                    kept.intakeKcal = intake
+                } else {
+                    kept.intakeKcal = max(kept.intakeKcal, ledger.intakeKcal)
+                }
+                mergedLedgers[index] = kept
+                changed = true
+            } else {
+                ledgerIndexByDay[day] = mergedLedgers.count
+                mergedLedgers.append(ledger)
+            }
+        }
+
+        var latestHealthKitWeightByDay: [Date: BodyMetric] = [:]
+        for metric in bodyMetrics where metric.source == .healthKit {
+            let day = LifeDayService.startOfLifeDay(containing: metric.date, preferences: preferences)
+            if let current = latestHealthKitWeightByDay[day], current.date >= metric.date { continue }
+            latestHealthKitWeightByDay[day] = metric
+        }
+        let keptIDs = Set(latestHealthKitWeightByDay.values.map(\.id))
+        let cleanedMetrics = bodyMetrics.filter { $0.source != .healthKit || keptIDs.contains($0.id) }
+        if cleanedMetrics.count != bodyMetrics.count { changed = true }
+
+        guard changed else { return }
+        ledgers = mergedLedgers
+        bodyMetrics = cleanedMetrics
         save()
     }
 

@@ -228,22 +228,17 @@ struct SettingsView: View {
                         basalKcal: Int(healthKit.latestBasalEnergyKcal),
                         bodyMassKg: healthKit.latestBodyMassKg
                     )
-                    modelContext.insert(DailyHealthSummaryEntry(
+                    SwiftDataBridge.upsertDailySummary(
                         lifeDayStart: LifeDayService.startOfLifeDay(containing: .now, preferences: store.preferences),
                         intakeKcal: store.todayLedger?.intakeKcal ?? 0,
                         activeKcal: Int(healthKit.latestActiveEnergyKcal),
                         basalKcal: Int(healthKit.latestBasalEnergyKcal),
                         stepCount: Int(healthKit.latestStepCount),
-                        sourceRaw: DataSource.healthKit.rawValue
-                    ))
+                        preferences: store.preferences,
+                        context: modelContext
+                    )
                     if let bodyMassKg = healthKit.latestBodyMassKg {
-                        modelContext.insert(BodyMetricEntry(from: BodyMetric(
-                            date: .now,
-                            weightKg: bodyMassKg,
-                            bodyFatPercent: nil,
-                            waistCm: nil,
-                            source: .healthKit
-                        )))
+                        SwiftDataBridge.replaceHealthKitBodyMetric(weightKg: bodyMassKg, date: .now, preferences: store.preferences, context: modelContext)
                     }
                     try? modelContext.save()
                 }
@@ -358,7 +353,7 @@ struct SettingsView: View {
         store.applyHealthKitDailySummaries(healthKit.recentDailySummaries)
 
         for summary in healthKit.recentDailySummaries {
-            modelContext.insert(DailyHealthSummaryEntry(
+            SwiftDataBridge.upsertDailySummary(
                 lifeDayStart: summary.lifeDayStart,
                 intakeKcal: store.ledgers.first(where: {
                     LifeDayService.isSameLifeDay($0.date, summary.lifeDayStart, preferences: store.preferences)
@@ -366,8 +361,9 @@ struct SettingsView: View {
                 activeKcal: summary.activeKcal,
                 basalKcal: summary.basalKcal,
                 stepCount: summary.stepCount,
-                sourceRaw: DataSource.healthKit.rawValue
-            ))
+                preferences: store.preferences,
+                context: modelContext
+            )
         }
 
         try? modelContext.save()

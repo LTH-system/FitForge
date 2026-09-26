@@ -56,6 +56,8 @@ struct RootView: View {
             .task {
                 SwiftDataBridge.hydrateStoreIfAvailable(store, context: modelContext)
                 SwiftDataBridge.seedIfNeeded(from: store, context: modelContext)
+                store.removeDuplicateSyncedRecords()
+                SwiftDataBridge.removeDuplicateSyncedEntries(preferences: store.preferences, context: modelContext)
                 store.recalibrateMaintenanceIfNeeded()
                 NotificationService.apply(store.preferences.notificationSettings)
             }

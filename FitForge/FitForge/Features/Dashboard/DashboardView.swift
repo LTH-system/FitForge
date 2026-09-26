@@ -366,22 +366,17 @@ struct DashboardView: View {
             basalKcal: Int(healthKit.latestBasalEnergyKcal),
             bodyMassKg: healthKit.latestBodyMassKg
         )
-        modelContext.insert(DailyHealthSummaryEntry(
+        SwiftDataBridge.upsertDailySummary(
             lifeDayStart: LifeDayService.startOfLifeDay(containing: .now, preferences: store.preferences),
             intakeKcal: store.todayLedger?.intakeKcal ?? 0,
             activeKcal: Int(healthKit.latestActiveEnergyKcal),
             basalKcal: Int(healthKit.latestBasalEnergyKcal),
             stepCount: Int(healthKit.latestStepCount),
-            sourceRaw: DataSource.healthKit.rawValue
-        ))
+            preferences: store.preferences,
+            context: modelContext
+        )
         if let bodyMassKg = healthKit.latestBodyMassKg {
-            modelContext.insert(BodyMetricEntry(from: BodyMetric(
-                date: .now,
-                weightKg: bodyMassKg,
-                bodyFatPercent: nil,
-                waistCm: nil,
-                source: .healthKit
-            )))
+            SwiftDataBridge.replaceHealthKitBodyMetric(weightKg: bodyMassKg, date: .now, preferences: store.preferences, context: modelContext)
         }
         try? modelContext.save()
     }
