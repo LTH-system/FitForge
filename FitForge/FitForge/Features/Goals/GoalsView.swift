@@ -17,6 +17,9 @@ struct GoalsView: View {
                 routePanel
                 pacePanel
                 budgetPanel
+                if let recalibration = store.preferences.lastRecalibration, recalibration.changed {
+                    recalibrationBanner(recalibration)
+                }
                 trendPanel
                 balancePanel
             }
@@ -277,6 +280,23 @@ struct GoalsView: View {
         .frame(maxWidth: .infinity)
         .padding(.vertical, 8)
         .background((emphasized ? FF.accent : color).opacity(0.12), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+
+    private func recalibrationBanner(_ recalibration: MaintenanceRecalibration) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            IconSeat(systemName: "arrow.triangle.2.circlepath", color: FF.deficit, size: 34)
+            VStack(alignment: .leading, spacing: 3) {
+                Text("毎週の自動補正 · \(Self.shortDateText(recalibration.date))")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(FF.deficit)
+                Text("先週の体重の動きから、消費カロリーを \(recalibration.previousMaintenanceKcal) → \(recalibration.newMaintenanceKcal)kcal に見直しました。目標摂取カロリーは \(recalibration.previousBudgetKcal) → \(recalibration.newBudgetKcal)kcal になります。")
+                    .font(.system(size: 13))
+                    .lineSpacing(4)
+                    .foregroundStyle(FF.textPrimary)
+            }
+        }
+        .padding(14)
+        .background(FF.deficit.opacity(0.1), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 
     private func basalExplanation(_ plan: BudgetPlan) -> String {

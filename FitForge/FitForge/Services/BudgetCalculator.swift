@@ -32,6 +32,8 @@ enum BudgetCalculator {
     static let maintenanceToleranceKg = 0.1
     /// HealthKitの基礎代謝を採用するのに必要な、丸1日分のデータ日数
     static let minimumHealthKitDays = 3
+    /// 毎週の自動補正が一度に動かせるkcalの上限(絶対値)。1週間分の実績で大きく振れすぎないための歯止め
+    static let maxCalibrationKcal = 400
 
     static func mifflinStJeor(sex: BiologicalSex, weightKg: Double, heightCm: Double, age: Int) -> Double {
         let base = 10 * weightKg + 6.25 * heightCm - 5 * Double(age)
@@ -64,6 +66,7 @@ enum BudgetCalculator {
         return (Int(weightKg * 22), .weightOnly)
     }
 
+    /// - Parameter calibrationKcal: 毎週の自動補正で調整された、基礎代謝×活動係数の推定消費への上乗せ分(kcal)
     static func plan(
         currentWeightKg: Double,
         targetWeightKg: Double,
@@ -71,12 +74,13 @@ enum BudgetCalculator {
         weeklyWorkoutDays: Int,
         profile: BodyProfile?,
         recentBasalKcal: [Int],
+        calibrationKcal: Int = 0,
         today: Date = .now,
         calendar: Calendar = .current
     ) -> BudgetPlan {
         let basal = basal(weightKg: currentWeightKg, profile: profile, recentBasalKcal: recentBasalKcal, on: today)
         let factor = activityFactor(weeklyWorkoutDays: weeklyWorkoutDays)
-        let maintenance = Double(basal.kcal) * factor
+        let maintenance = Double(basal.kcal) * factor + Double(calibrationKcal)
         let remainingKg = targetWeightKg - currentWeightKg
 
         guard abs(remainingKg) > maintenanceToleranceKg else {

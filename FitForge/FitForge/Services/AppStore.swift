@@ -207,7 +207,8 @@ final class AppStore: ObservableObject {
             pace: pace,
             weeklyWorkoutDays: preferences.onboarding.weeklyWorkoutDays,
             profile: preferences.bodyProfile,
-            recentBasalKcal: recentHealthKitBasalKcal
+            recentBasalKcal: recentHealthKitBasalKcal,
+            calibrationKcal: preferences.maintenanceCalibrationKcal
         )
     }
 
@@ -582,6 +583,58 @@ final class AppStore: ObservableObject {
     // MARK: 連続記録
 
     /// 自分で何かを記録した生活日（HealthKitから自動で入った体重は含めない）
+    // MARK: 毎週の自動補正
+
+    /// 実際の体重の動きと平均摂取から消費カロリーを推定し直し、目標摂取カロリーを補正する。
+    /// 前回の補正から7日以上たっていて、直近7日で体重記録が3回以上・食事記録が4日以上ある週だけ動く
+    func recalibrateMaintenanceIfNeeded(now: Date = .now, calendar: Calendar = .current) {
+        if let last = preferences.lastRecalibration?.date,
+           let next = calendar.date(byAdding: .day, value: 7, to: last), next > now {
+            return
+        }
+
+        let interval = LifeDayService.recentLifeDayInterval(days: 7, endingAt: now, preferences: preferences, calendar: calendar)
+        let weightLogs = bodyMetrics.filter { interval.contains($0.date) }.sorted { $0.date < $1.date }
+        guard weightLogs.count >= 3, let firstWeight = weightLogs.first, let lastWeight = weightLogs.last else { return }
+
+        let elapsedDays = lastWeight.date.timeIntervalSince(firstWeight.date) / 86_400
+        guard elapsedDays >= 2 else { return }
+
+        let todayStart = LifeDayService.startOfLifeDay(containing: now, preferences: preferences)
+        let recentIntakes = (0..<7)
+            .compactMap { calendar.date(byAdding: .day, value: -$0, to: todayStart) }
+            .map { nutrition(onLifeDay: $0).kcal }
+            .filter { $0 > 0 }
+        guard recentIntakes.count >= 4 else { return }
+        let averageIntake = Double(recentIntakes.reduce(0, +)) / Double(recentIntakes.count)
+
+        let actualDeltaKg = lastWeight.weightKg - firstWeight.weightKg
+        let actualDailyDelta = actualDeltaKg * BudgetCalculator.kcalPerKgBodyFat / elapsedDays
+        let actualMaintenance = averageIntake - actualDailyDelta
+
+        let basal = BudgetCalculator.basal(weightKg: latestWeight, profile: preferences.bodyProfile, recentBasalKcal: recentHealthKitBasalKcal, on: now)
+        let factor = BudgetCalculator.activityFactor(weeklyWorkoutDays: preferences.onboarding.weeklyWorkoutDays)
+        let formulaMaintenance = Double(basal.kcal) * factor
+
+        let rawDelta = actualMaintenance - formulaMaintenance
+        let blended = Double(preferences.maintenanceCalibrationKcal) * 0.5 + rawDelta * 0.5
+        let clamped = max(-BudgetCalculator.maxCalibrationKcal, min(BudgetCalculator.maxCalibrationKcal, Int(blended.rounded())))
+
+        let previousPlan = budgetPlan
+        preferences.maintenanceCalibrationKcal = clamped
+        let newPlan = budgetPlan
+
+        preferences.lastRecalibration = MaintenanceRecalibration(
+            date: now,
+            previousMaintenanceKcal: previousPlan.maintenanceKcal,
+            newMaintenanceKcal: newPlan.maintenanceKcal,
+            previousBudgetKcal: previousPlan.budgetKcal,
+            newBudgetKcal: newPlan.budgetKcal
+        )
+        goal.dailyCalorieTarget = newPlan.budgetKcal
+        save()
+    }
+
     // MARK: 週次ふりかえり
 
     struct WeeklySummary {

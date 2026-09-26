@@ -304,6 +304,29 @@ struct BodyProfile: Hashable, Codable {
     }
 }
 
+/// 毎週の自動補正の結果。進捗タブに直近の補正内容を表示するために保持する
+struct MaintenanceRecalibration: Hashable, Codable {
+    var date: Date
+    var previousMaintenanceKcal: Int
+    var newMaintenanceKcal: Int
+    var previousBudgetKcal: Int
+    var newBudgetKcal: Int
+
+    var changed: Bool { previousBudgetKcal != newBudgetKcal }
+}
+
+/// 夕食前・週次ふりかえりのローカル通知設定
+struct NotificationSettings: Hashable, Codable {
+    var dinnerReminderEnabled = false
+    var dinnerReminderHour = 18
+    var dinnerReminderMinute = 0
+    var weeklyReviewReminderEnabled = false
+    /// 1=日曜 … 7=土曜（Calendar.Componentのweekday）
+    var weeklyReviewWeekday = 1
+    var weeklyReviewHour = 20
+    var weeklyReviewMinute = 0
+}
+
 struct UserPreferences: Hashable, Codable {
     var languageCode: String
     var dayStartHour: Int
@@ -312,6 +335,10 @@ struct UserPreferences: Hashable, Codable {
     var mealAIEndpointURLString: String
     /// 未入力の既存ユーザーはnil。入力を促し、それまでは体重ベースで推定する
     var bodyProfile: BodyProfile?
+    /// 毎週の自動補正で、基礎代謝×活動係数の推定に上乗せしている分(kcal)
+    var maintenanceCalibrationKcal = 0
+    var lastRecalibration: MaintenanceRecalibration?
+    var notificationSettings = NotificationSettings()
 
     static let japaneseDefault = UserPreferences(
         languageCode: "ja",
@@ -338,6 +365,9 @@ struct UserPreferences: Hashable, Codable {
         onboarding = try container.decodeIfPresent(OnboardingProfile.self, forKey: .onboarding) ?? .initial
         mealAIEndpointURLString = try container.decodeIfPresent(String.self, forKey: .mealAIEndpointURLString) ?? ""
         bodyProfile = try container.decodeIfPresent(BodyProfile.self, forKey: .bodyProfile)
+        maintenanceCalibrationKcal = try container.decodeIfPresent(Int.self, forKey: .maintenanceCalibrationKcal) ?? 0
+        lastRecalibration = try container.decodeIfPresent(MaintenanceRecalibration.self, forKey: .lastRecalibration)
+        notificationSettings = try container.decodeIfPresent(NotificationSettings.self, forKey: .notificationSettings) ?? NotificationSettings()
     }
 }
 
