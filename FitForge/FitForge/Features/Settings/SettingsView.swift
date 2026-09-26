@@ -4,6 +4,7 @@ import SwiftData
 struct SettingsView: View {
     @EnvironmentObject private var store: AppStore
     @EnvironmentObject private var healthKit: HealthKitService
+    @EnvironmentObject private var cloudBackup: CloudBackupService
     @Environment(\.modelContext) private var modelContext
     @State private var selectedLanguage = "ja"
     @State private var dayStartHour = 5
@@ -14,6 +15,8 @@ struct SettingsView: View {
     @State private var isEditingGoal = false
     @State private var notificationSettings = NotificationSettings()
     @State private var isNotificationAuthorized = true
+    @State private var showRestoreConfirm = false
+    @State private var restoreResultMessage: String?
 
     var body: some View {
         ScrollView {
@@ -24,6 +27,7 @@ struct SettingsView: View {
                 notificationPanel
                 healthKitPanel
                 connectionPanel
+                backupPanel
                 dataPanel
                 trustPanel
             }
@@ -288,11 +292,107 @@ struct SettingsView: View {
         .panelStyle()
     }
 
+    // MARK: iCloudバックアップ
+
+    private var backupPanel: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            SectionHeader(title: "iCloudバックアップ", subtitle: "機種変更やアプリの入れ直しのあとに、同じApple IDで記録を戻せます")
+
+            switch cloudBackup.accountState {
+            case .checking:
+                infoRow("icloud", "iCloudの状態を確認しています")
+            case .available:
+                infoRow("checkmark.icloud", lastBackupText)
+            case .unavailable(let reason):
+                infoRow("icloud.slash", reason)
+            }
+
+            Toggle(isOn: $cloudBackup.isAutoBackupEnabled) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("自動でバックアップ")
+                        .font(FF.fontBody)
+                        .foregroundStyle(FF.textPrimary)
+                    Text("アプリを閉じたときに、記録が変わっていれば保存します")
+                        .font(FF.fontCaption)
+                        .foregroundStyle(FF.textSecondary)
+                }
+            }
+            .tint(FF.accent)
+
+            Button {
+                Task { await cloudBackup.backupNow(store.backupSnapshot) }
+            } label: {
+                Label("今すぐバックアップ", systemImage: "icloud.and.arrow.up")
+            }
+            .buttonStyle(FFSecondaryButtonStyle())
+            .disabled(cloudBackup.isWorking || cloudBackup.accountState != .available)
+
+            Button {
+                showRestoreConfirm = true
+            } label: {
+                Label("iCloudから復元", systemImage: "icloud.and.arrow.down")
+            }
+            .buttonStyle(FFSecondaryButtonStyle())
+            .disabled(cloudBackup.isWorking || cloudBackup.latestBackup == nil)
+            .confirmationDialog(
+                "iCloudのバックアップから復元しますか？",
+                isPresented: $showRestoreConfirm,
+                titleVisibility: .visible
+            ) {
+                Button("復元する", role: .destructive) {
+                    Task { await restoreFromCloud() }
+                }
+                Button("やめる", role: .cancel) {}
+            } message: {
+                Text("この端末にある今の記録は、バックアップの内容に置き換わります。")
+            }
+
+            if cloudBackup.isWorking {
+                ProgressView()
+                    .frame(maxWidth: .infinity)
+            }
+
+            if let restoreResultMessage {
+                Text(restoreResultMessage)
+                    .font(FF.fontCaption)
+                    .foregroundStyle(FF.deficit)
+            } else if let error = cloudBackup.lastErrorMessage, cloudBackup.accountState == .available {
+                Text(error)
+                    .font(FF.fontCaption)
+                    .foregroundStyle(FF.destructive)
+            }
+        }
+        .panelStyle()
+        .task {
+            await cloudBackup.refreshStatus()
+        }
+    }
+
+    private var lastBackupText: String {
+        guard let backup = cloudBackup.latestBackup else { return "まだバックアップはありません" }
+        let date = backup.savedAt.formatted(.dateTime.month().day().hour().minute())
+        return "最終バックアップ：\(date)（記録\(backup.recordCount)件）"
+    }
+
+    private func restoreFromCloud() async {
+        restoreResultMessage = nil
+        do {
+            try await cloudBackup.restoreLatest(into: store, context: modelContext)
+            selectedLanguage = store.preferences.languageCode
+            dayStartHour = store.preferences.dayStartHour
+            dayStartMinute = store.preferences.dayStartMinute
+            notificationSettings = store.preferences.notificationSettings
+            restoreResultMessage = "バックアップから復元しました"
+        } catch {
+            cloudBackup.reportRestoreFailure(error)
+        }
+    }
+
     // MARK: データ管理
 
     private var dataPanel: some View {
         VStack(alignment: .leading, spacing: 14) {
-            SectionHeader(title: "データ管理", subtitle: "記録はこの端末にのみ保存されています")
+            SectionHeader(title: "データ管理", subtitle: "記録はこの端末に保存されています。iCloudバックアップをオンにすると、iCloudにも保存されます")
 
             Button {
                 store.loadDemoData()
@@ -319,7 +419,7 @@ struct SettingsView: View {
                 }
                 Button("やめる", role: .cancel) {}
             } message: {
-                Text("食事・筋トレ・運動・体重・チェックインの記録が消えます。この操作は取り消せません。")
+                Text("食事・筋トレ・運動・体重・チェックインの記録がこの端末から消えます。iCloudにバックアップがあれば、「iCloudから復元」で戻せます。")
             }
         }
         .panelStyle()

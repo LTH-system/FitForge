@@ -43,6 +43,7 @@
 		000000000000000000000122 /* BarcodeFoodClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000224 /* BarcodeFoodClient.swift */; };
 		000000000000000000000123 /* BarcodeScannerRepresentable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000225 /* BarcodeScannerRepresentable.swift */; };
 		000000000000000000000124 /* BarcodeMealSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000226 /* BarcodeMealSheet.swift */; };
+		000000000000000000000125 /* CloudBackupService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000227 /* CloudBackupService.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -85,6 +86,7 @@
 		000000000000000000000224 /* BarcodeFoodClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Services/BarcodeFoodClient.swift; sourceTree = "<group>"; };
 		000000000000000000000225 /* BarcodeScannerRepresentable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Features/Meals/BarcodeScannerRepresentable.swift; sourceTree = "<group>"; };
 		000000000000000000000226 /* BarcodeMealSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Features/Meals/BarcodeMealSheet.swift; sourceTree = "<group>"; };
+		000000000000000000000227 /* CloudBackupService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Services/CloudBackupService.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -145,6 +147,7 @@
 				000000000000000000000224 /* BarcodeFoodClient.swift */,
 				000000000000000000000225 /* BarcodeScannerRepresentable.swift */,
 				000000000000000000000226 /* BarcodeMealSheet.swift */,
+				000000000000000000000227 /* CloudBackupService.swift */,
 				00000000000000000000020F /* Info.plist */,
 				000000000000000000000210 /* FitForge.entitlements */,
 			);
@@ -264,6 +267,7 @@
 				000000000000000000000122 /* BarcodeFoodClient.swift in Sources */,
 				000000000000000000000123 /* BarcodeScannerRepresentable.swift in Sources */,
 				000000000000000000000124 /* BarcodeMealSheet.swift in Sources */,
+				000000000000000000000125 /* CloudBackupService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

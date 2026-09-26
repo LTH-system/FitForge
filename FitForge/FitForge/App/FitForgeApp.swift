@@ -5,12 +5,14 @@ import SwiftData
 struct FitForgeApp: App {
     @StateObject private var store = AppStore()
     @StateObject private var healthKit = HealthKitService()
+    @StateObject private var cloudBackup = CloudBackupService()
 
     var body: some Scene {
         WindowGroup {
             RootView()
                 .environmentObject(store)
                 .environmentObject(healthKit)
+                .environmentObject(cloudBackup)
                 .modelContainer(for: [
                     MealEntry.self,
                     StrengthSetEntry.self,

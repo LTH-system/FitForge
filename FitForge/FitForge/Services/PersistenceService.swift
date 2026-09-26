@@ -51,17 +51,25 @@ enum PersistenceService {
 
     static func load() -> AppSnapshot? {
         guard let data = try? Data(contentsOf: fileURL) else { return nil }
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        return try? decoder.decode(AppSnapshot.self, from: data)
+        return decode(data)
     }
 
     static func save(_ snapshot: AppSnapshot) {
+        guard let data = encode(snapshot) else { return }
+        try? data.write(to: fileURL, options: [.atomic])
+    }
+
+    /// 端末保存とiCloudバックアップで同じ形式を使う。キー順を固定しているので、内容が同じなら同じバイト列になる
+    static func encode(_ snapshot: AppSnapshot) -> Data? {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        return try? encoder.encode(snapshot)
+    }
 
-        guard let data = try? encoder.encode(snapshot) else { return }
-        try? data.write(to: fileURL, options: [.atomic])
+    static func decode(_ data: Data) -> AppSnapshot? {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return try? decoder.decode(AppSnapshot.self, from: data)
     }
 }

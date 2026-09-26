@@ -51,6 +51,27 @@ final class AppStore: ObservableObject {
         PersistenceService.save(snapshot)
     }
 
+    /// iCloudバックアップに渡す現在の内容
+    var backupSnapshot: AppSnapshot { snapshot }
+
+    /// バックアップの判断材料にする記録の件数（台帳はヘルスケアから作り直せるので数えない）
+    var recordCount: Int {
+        meals.count + strengthSets.count + cardioSessions.count + bodyMetrics.count + checkIns.count
+    }
+
+    /// iCloudバックアップの内容で端末の記録を置き換える
+    func restore(from snapshot: AppSnapshot) {
+        bodyMetrics = snapshot.bodyMetrics
+        ledgers = snapshot.ledgers
+        meals = snapshot.meals
+        strengthSets = snapshot.strengthSets
+        cardioSessions = snapshot.cardioSessions
+        checkIns = snapshot.checkIns
+        goal = snapshot.goal
+        preferences = snapshot.preferences
+        save()
+    }
+
     func replaceAll(
         bodyMetrics: [BodyMetric],
         ledgers: [CalorieLedger],
