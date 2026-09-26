@@ -491,6 +491,12 @@ final class AppStore: ObservableObject {
         save()
     }
 
+    func updateNotificationSettings(_ settings: NotificationSettings) {
+        preferences.notificationSettings = settings
+        save()
+        NotificationService.apply(settings)
+    }
+
     func applyHealthKitSummary(stepCount: Int, activeKcal: Int, basalKcal: Int, bodyMassKg: Double?) {
         let today = LifeDayService.startOfLifeDay(containing: .now, preferences: preferences)
         let ledger = CalorieLedger(

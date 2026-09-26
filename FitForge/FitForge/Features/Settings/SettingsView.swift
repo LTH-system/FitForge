@@ -12,6 +12,8 @@ struct SettingsView: View {
     @State private var showEraseConfirm = false
     @State private var isEditingBody = false
     @State private var isEditingGoal = false
+    @State private var notificationSettings = NotificationSettings()
+    @State private var isNotificationAuthorized = true
 
     var body: some View {
         ScrollView {
@@ -19,6 +21,7 @@ struct SettingsView: View {
                 profilePanel
                 languagePanel
                 lifeDayPanel
+                notificationPanel
                 healthKitPanel
                 connectionPanel
                 dataPanel
@@ -41,6 +44,67 @@ struct SettingsView: View {
             dayStartHour = store.preferences.dayStartHour
             dayStartMinute = store.preferences.dayStartMinute
             mealAIEndpointURLString = store.preferences.mealAIEndpointURLString
+            notificationSettings = store.preferences.notificationSettings
+        }
+        .task {
+            isNotificationAuthorized = await NotificationService.isAuthorized()
+        }
+    }
+
+    // MARK: 通知
+
+    private var notificationPanel: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            SectionHeader(title: "通知", subtitle: "内容は固定文です。記録の数値は通知には含まれません")
+
+            if !isNotificationAuthorized {
+                Label("通知が許可されていません。iPhoneの設定 > 通知 から許可してください", systemImage: "exclamationmark.triangle")
+                    .font(FF.fontCaption)
+                    .foregroundStyle(FF.over)
+            }
+
+            Toggle("夕食前のリマインド", isOn: $notificationSettings.dinnerReminderEnabled)
+                .tint(FF.accent)
+            if notificationSettings.dinnerReminderEnabled {
+                timeRow(hour: $notificationSettings.dinnerReminderHour, minute: $notificationSettings.dinnerReminderMinute)
+            }
+
+            Divider()
+
+            Toggle("週次ふりかえりの通知", isOn: $notificationSettings.weeklyReviewReminderEnabled)
+                .tint(FF.accent)
+            if notificationSettings.weeklyReviewReminderEnabled {
+                FFSegmentedPicker(
+                    options: Array(1...7),
+                    label: { ["日", "月", "火", "水", "木", "金", "土"][$0 - 1] },
+                    selection: $notificationSettings.weeklyReviewWeekday,
+                    tint: FF.accent
+                )
+                timeRow(hour: $notificationSettings.weeklyReviewHour, minute: $notificationSettings.weeklyReviewMinute)
+            }
+
+            Button("通知の設定を保存") {
+                Task {
+                    if notificationSettings.dinnerReminderEnabled || notificationSettings.weeklyReviewReminderEnabled {
+                        isNotificationAuthorized = await NotificationService.requestAuthorization()
+                    }
+                    store.updateNotificationSettings(notificationSettings)
+                }
+            }
+            .buttonStyle(FFSecondaryButtonStyle())
+        }
+        .panelStyle()
+    }
+
+    private func timeRow(hour: Binding<Int>, minute: Binding<Int>) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            FFStepperRow(
+                label: "時刻",
+                valueText: String(format: "%d:%02d", hour.wrappedValue, minute.wrappedValue),
+                onMinus: { hour.wrappedValue = (hour.wrappedValue + 23) % 24 },
+                onPlus: { hour.wrappedValue = (hour.wrappedValue + 1) % 24 }
+            )
+            FFSegmentedPicker(options: [0, 15, 30, 45], label: { String(format: "%02d分", $0) }, selection: minute, tint: FF.accent)
         }
     }
 

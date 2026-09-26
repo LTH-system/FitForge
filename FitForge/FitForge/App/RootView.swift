@@ -57,6 +57,7 @@ struct RootView: View {
                 SwiftDataBridge.hydrateStoreIfAvailable(store, context: modelContext)
                 SwiftDataBridge.seedIfNeeded(from: store, context: modelContext)
                 store.recalibrateMaintenanceIfNeeded()
+                NotificationService.apply(store.preferences.notificationSettings)
             }
             .environmentObject(router)
         } else {
