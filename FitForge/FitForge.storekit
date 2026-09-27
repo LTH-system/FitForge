@@ -1,0 +1,101 @@
+{
+  "identifier" : "4F0C2B9E",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+
+  ],
+  "settings" : {
+    "_applicationInternalID" : "",
+    "_developerTeamID" : "",
+    "_locale" : "ja_JP",
+    "_storefront" : "JPN",
+    "_storeKitErrors" : [
+
+    ]
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "21A7C3D1",
+      "localizations" : [
+        {
+          "description" : "長期の分析や次回の重量の提案が使えます",
+          "displayName" : "FitForge プレミアム",
+          "locale" : "ja"
+        }
+      ],
+      "name" : "FitForge プレミアム",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "480",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "6A1B2C3D",
+          "introductoryOffer" : {
+            "internalID" : "7B2C3D4E",
+            "paymentMode" : "free",
+            "subscriptionPeriod" : "P2W"
+          },
+          "localizations" : [
+            {
+              "description" : "毎月自動で更新されます",
+              "displayName" : "月額プラン",
+              "locale" : "ja"
+            }
+          ],
+          "productID" : "com.fitforge.app.premium.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Premium Monthly",
+          "subscriptionGroupID" : "21A7C3D1",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [
+
+          ]
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "4980",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "8C3D4E5F",
+          "introductoryOffer" : {
+            "internalID" : "9D4E5F60",
+            "paymentMode" : "free",
+            "subscriptionPeriod" : "P2W"
+          },
+          "localizations" : [
+            {
+              "description" : "毎年自動で更新されます",
+              "displayName" : "年額プラン",
+              "locale" : "ja"
+            }
+          ],
+          "productID" : "com.fitforge.app.premium.yearly",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "Premium Yearly",
+          "subscriptionGroupID" : "21A7C3D1",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [
+
+          ]
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}

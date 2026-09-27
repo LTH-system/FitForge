@@ -6,6 +6,7 @@ struct FitForgeApp: App {
     @StateObject private var store = AppStore()
     @StateObject private var healthKit = HealthKitService()
     @StateObject private var cloudBackup = CloudBackupService()
+    @StateObject private var premium = PremiumStore()
 
     var body: some Scene {
         WindowGroup {
@@ -13,6 +14,7 @@ struct FitForgeApp: App {
                 .environmentObject(store)
                 .environmentObject(healthKit)
                 .environmentObject(cloudBackup)
+                .environmentObject(premium)
                 .modelContainer(for: [
                     MealEntry.self,
                     StrengthSetEntry.self,

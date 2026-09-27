@@ -1,10 +1,12 @@
 import SwiftUI
 import SwiftData
+import StoreKit
 
 struct SettingsView: View {
     @EnvironmentObject private var store: AppStore
     @EnvironmentObject private var healthKit: HealthKitService
     @EnvironmentObject private var cloudBackup: CloudBackupService
+    @EnvironmentObject private var premium: PremiumStore
     @Environment(\.modelContext) private var modelContext
     @State private var dayStartHour = 5
     @State private var dayStartMinute = 0
@@ -15,11 +17,14 @@ struct SettingsView: View {
     @State private var notificationSettings = NotificationSettings()
     @State private var isNotificationAuthorized = true
     @State private var showRestoreConfirm = false
+    @State private var isPaywallPresented = false
+    @State private var isManagingSubscription = false
     @State private var restoreResultMessage: String?
 
     var body: some View {
         ScrollView {
             VStack(spacing: 12) {
+                premiumPanel
                 profilePanel
                 lifeDayPanel
                 notificationPanel
@@ -37,6 +42,10 @@ struct SettingsView: View {
             BodyProfileEditorView()
                 .presentationDetents([.medium, .large])
         }
+        .sheet(isPresented: $isPaywallPresented) {
+            PremiumPaywallView()
+        }
+        .manageSubscriptionsSheet(isPresented: $isManagingSubscription)
         .sheet(isPresented: $isEditingGoal) {
             GoalEditorView()
                 .presentationDetents([.medium])
@@ -50,6 +59,53 @@ struct SettingsView: View {
         .task {
             isNotificationAuthorized = await NotificationService.isAuthorized()
         }
+    }
+
+    // MARK: プレミアム
+
+    private var premiumPanel: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 12) {
+                IconSeat(systemName: premium.isPremium ? "checkmark.seal.fill" : "sparkles", color: FF.accent, size: 36)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("FitForge プレミアム")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(FF.textPrimary)
+                    Text(premiumStatusText)
+                        .font(FF.fontCaption)
+                        .foregroundStyle(FF.textSecondary)
+                }
+                Spacer(minLength: 0)
+            }
+
+            if premium.isPremium {
+                Button("サブスクリプションを管理") {
+                    isManagingSubscription = true
+                }
+                .buttonStyle(FFSecondaryButtonStyle())
+            } else {
+                Button(trialButtonTitle) {
+                    isPaywallPresented = true
+                }
+                .buttonStyle(FFPrimaryButtonStyle())
+            }
+        }
+        .panelStyle()
+    }
+
+    private var trialButtonTitle: String {
+        if let product = premium.product(for: .yearly) ?? premium.products.first,
+           let trial = premium.freeTrialText(for: product) {
+            return "\(trial)無料で試す"
+        }
+        return "プレミアムについて見る"
+    }
+
+    private var premiumStatusText: String {
+        guard premium.isPremium else { return "長期の分析や次回の重量の提案が使えます" }
+        let plan = premium.activePlan == .yearly ? "年額プラン" : "月額プラン"
+        if premium.isInTrial { return "\(plan)・無料お試し中" }
+        return "\(plan)をご利用中"
     }
 
     // MARK: 通知

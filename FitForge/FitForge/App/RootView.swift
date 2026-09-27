@@ -10,6 +10,7 @@ private struct IdentifiedExercise: Identifiable {
 struct RootView: View {
     @EnvironmentObject private var store: AppStore
     @EnvironmentObject private var cloudBackup: CloudBackupService
+    @EnvironmentObject private var premium: PremiumStore
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var router = AppRouter()
@@ -19,6 +20,9 @@ struct RootView: View {
         content
             .task {
                 await cloudBackup.refreshStatus()
+            }
+            .task {
+                await premium.refresh()
             }
             .onChange(of: scenePhase) { _, newPhase in
                 if newPhase == .background {
