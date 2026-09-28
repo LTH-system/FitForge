@@ -8,6 +8,7 @@ enum PremiumFeature: String, CaseIterable, Identifiable {
     case nutritionBalance
     case progression
     case unlimitedRoutines
+    case racePlan
     case export
 
     var id: String { rawValue }
@@ -19,6 +20,7 @@ enum PremiumFeature: String, CaseIterable, Identifiable {
         case .nutritionBalance: "栄養バランスの過不足"
         case .progression: "次回の重量の提案"
         case .unlimitedRoutines: "ルーティンを無制限に作成"
+        case .racePlan: "大会に向けたトレーニングプラン"
         case .export: "記録のCSV書き出し"
         }
     }
@@ -30,6 +32,7 @@ enum PremiumFeature: String, CaseIterable, Identifiable {
         case .nutritionBalance: "たんぱく質・脂質・炭水化物が目標に対して足りているかを日ごとに確認できます"
         case .progression: "前回の記録から、次に挑戦する重量と回数を提案します"
         case .unlimitedRoutines: "無料では\(PremiumStore.freeRoutineLimit)個までのルーティンを、いくつでも作れます"
+        case .racePlan: "マラソン・ハーフ・10km・5km・HYROXの大会日から逆算して、毎週のメニューを組み立てます"
         case .export: "食事・筋トレ・運動・体重の記録を表計算ソフトで開ける形式で書き出せます"
         }
     }
@@ -41,6 +44,7 @@ enum PremiumFeature: String, CaseIterable, Identifiable {
         case .nutritionBalance: "chart.pie"
         case .progression: "arrow.up.forward.circle"
         case .unlimitedRoutines: "list.bullet.rectangle"
+        case .racePlan: "flag.checkered"
         case .export: "square.and.arrow.up"
         }
     }

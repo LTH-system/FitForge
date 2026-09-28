@@ -34,6 +34,7 @@ struct CardioView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 12) {
+                RacePlanPanel()
                 importPanel
                 inputPanel
                 summaryPanel

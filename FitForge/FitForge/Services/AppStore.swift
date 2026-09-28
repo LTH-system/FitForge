@@ -11,6 +11,7 @@ final class AppStore: ObservableObject {
     @Published var goal: GoalPlan
     @Published var preferences: UserPreferences
     @Published var routines: [WorkoutRoutine]
+    @Published var racePlan: RacePlan?
 
     init() {
         if let snapshot = PersistenceService.load() {
@@ -23,6 +24,7 @@ final class AppStore: ObservableObject {
             goal = snapshot.goal
             preferences = snapshot.preferences
             routines = snapshot.routines
+            racePlan = snapshot.racePlan
         } else {
             // 新規ユーザーはゼロから開始する。デモデータは設定画面から明示的に投入する。
             bodyMetrics = []
@@ -34,6 +36,7 @@ final class AppStore: ObservableObject {
             goal = AppStore.defaultGoal
             preferences = .japaneseDefault
             routines = []
+            racePlan = nil
         }
     }
 
@@ -47,7 +50,8 @@ final class AppStore: ObservableObject {
             checkIns: checkIns,
             goal: goal,
             preferences: preferences,
-            routines: routines
+            routines: routines,
+            racePlan: racePlan
         )
     }
 
@@ -74,6 +78,7 @@ final class AppStore: ObservableObject {
         goal = snapshot.goal
         preferences = snapshot.preferences
         routines = snapshot.routines
+        racePlan = snapshot.racePlan
         save()
     }
 
@@ -451,6 +456,13 @@ final class AppStore: ObservableObject {
 
     func deleteRoutine(_ routine: WorkoutRoutine) {
         routines.removeAll { $0.id == routine.id }
+        save()
+    }
+
+    // MARK: 大会プラン
+
+    func setRacePlan(_ plan: RacePlan?) {
+        racePlan = plan
         save()
     }
 
