@@ -19,6 +19,9 @@ struct SettingsView: View {
     @State private var showRestoreConfirm = false
     @State private var isPaywallPresented = false
     @State private var isManagingSubscription = false
+    @State private var exportFiles: [URL] = []
+    @State private var isExportSharePresented = false
+    @State private var exportErrorMessage: String?
     @State private var restoreResultMessage: String?
 
     var body: some View {
@@ -46,6 +49,9 @@ struct SettingsView: View {
             PremiumPaywallView()
         }
         .manageSubscriptionsSheet(isPresented: $isManagingSubscription)
+        .sheet(isPresented: $isExportSharePresented) {
+            ActivityShareSheet(items: exportFiles)
+        }
         .sheet(isPresented: $isEditingGoal) {
             GoalEditorView()
                 .presentationDetents([.medium])
@@ -426,6 +432,22 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 14) {
             SectionHeader(title: "データ管理", subtitle: "記録はこの端末に保存されています。iCloudバックアップをオンにすると、iCloudにも保存されます")
 
+            if premium.isPremium {
+                Button {
+                    exportCSV()
+                } label: {
+                    Label("記録をCSVで書き出す", systemImage: "square.and.arrow.up")
+                }
+                .buttonStyle(FFSecondaryButtonStyle())
+                if let exportErrorMessage {
+                    Text(exportErrorMessage)
+                        .font(FF.fontCaption)
+                        .foregroundStyle(FF.destructive)
+                }
+            } else {
+                PremiumLockedCard(feature: .export)
+            }
+
             Button {
                 store.loadDemoData()
                 SwiftDataBridge.resetAndSeed(from: store, context: modelContext)
@@ -455,6 +477,16 @@ struct SettingsView: View {
             }
         }
         .panelStyle()
+    }
+
+    private func exportCSV() {
+        do {
+            exportFiles = try CSVExporter.makeFiles(from: store)
+            exportErrorMessage = nil
+            isExportSharePresented = true
+        } catch {
+            exportErrorMessage = "書き出しに失敗しました。空き容量を確認してもう一度お試しください"
+        }
     }
 
     // MARK: 安心して使うために

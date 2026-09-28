@@ -21,6 +21,7 @@ struct GoalsView: View {
                     recalibrationBanner(recalibration)
                 }
                 trendPanel
+                LongTermTrendPanel()
                 balancePanel
             }
             .padding()
@@ -311,6 +312,19 @@ struct GoalsView: View {
 
     // MARK: カロリー収支と体重の推移
 
+    /// 無料の推移グラフは直近42日分だけを表示する
+    private var recentTrendInterval: DateInterval {
+        LifeDayService.recentLifeDayInterval(days: 42, preferences: store.preferences)
+    }
+
+    private var recentLedgers: [CalorieLedger] {
+        store.ledgers.filter { recentTrendInterval.contains($0.date) }
+    }
+
+    private var recentBodyMetrics: [BodyMetric] {
+        store.bodyMetrics.filter { recentTrendInterval.contains($0.date) }
+    }
+
     private var trendPanel: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
@@ -321,7 +335,7 @@ struct GoalsView: View {
                     .foregroundStyle(FF.textTertiary)
             }
 
-            if store.ledgers.isEmpty && store.bodyMetrics.count < 2 {
+            if recentLedgers.isEmpty && recentBodyMetrics.count < 2 {
                 VStack(spacing: 8) {
                     Image(systemName: "chart.line.uptrend.xyaxis")
                         .font(.system(size: 28))
@@ -334,7 +348,7 @@ struct GoalsView: View {
                 .padding(.vertical, 40)
             } else {
                 Chart {
-                    ForEach(store.ledgers) { ledger in
+                    ForEach(recentLedgers) { ledger in
                         BarMark(
                             x: .value("日付", ledger.date, unit: .day),
                             y: .value("収支", store.dailyBalanceKcal(for: ledger))
@@ -342,7 +356,7 @@ struct GoalsView: View {
                         .foregroundStyle(store.dailyBalanceKcal(for: ledger) <= 0 ? FF.deficit : FF.over)
                         .cornerRadius(4)
                     }
-                    ForEach(store.bodyMetrics) { metric in
+                    ForEach(recentBodyMetrics) { metric in
                         LineMark(
                             x: .value("日付", metric.date, unit: .day),
                             y: .value("体重", metric.weightKg * 100)

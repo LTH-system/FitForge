@@ -6,6 +6,7 @@ import SwiftData
 /// 従来の「重量×回数×セット」形式の一括入力とグラフ・自己ベストを共有する
 struct WorkoutSessionView: View {
     @EnvironmentObject private var store: AppStore
+    @EnvironmentObject private var premium: PremiumStore
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
 
@@ -55,6 +56,12 @@ struct WorkoutSessionView: View {
                     header
                     if let previousSet {
                         referencePanel(previousSet)
+                    }
+                    if premium.isPremium, loggedSets.isEmpty {
+                        ProgressionSuggestionCard(exercise: exerciseName, before: sessionStart) { suggestion in
+                            weightKg = suggestion.weightKg
+                            reps = suggestion.reps
+                        }
                     }
                     if isResting {
                         restPanel

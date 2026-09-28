@@ -43,6 +43,7 @@ struct MealsView: View {
                         dayNavigator
                             .id(Self.topAnchor)
                         dayPanel
+                        NutrientBalancePanel(nutrition: selectedNutrition, isToday: isViewingToday)
                         if !isViewingToday {
                             periodPickerPanel
                         }

@@ -5,6 +5,7 @@ import SwiftData
 struct TrainingView: View {
     @EnvironmentObject private var store: AppStore
     @EnvironmentObject private var router: AppRouter
+    @EnvironmentObject private var premium: PremiumStore
     @Environment(\.modelContext) private var modelContext
     @State private var selectedExercise = "ベンチプレス"
     @State private var exerciseName = "ベンチプレス"
@@ -41,6 +42,7 @@ struct TrainingView: View {
                 inputPanel
                 progressPanel
                 reminderPanel
+                MuscleVolumePanel()
             }
             .padding()
         }
@@ -289,7 +291,17 @@ struct TrainingView: View {
 
     // MARK: 次回の判断
 
+    @ViewBuilder
     private var reminderPanel: some View {
+        if premium.isPremium, !selectedSets.isEmpty {
+            ProgressionSuggestionCard(exercise: selectedExercise)
+                .panelStyle()
+        } else {
+            freeReminderPanel
+        }
+    }
+
+    private var freeReminderPanel: some View {
         HStack(alignment: .top, spacing: 12) {
             IconSeat(systemName: "arrow.up.right", color: FF.strength)
             VStack(alignment: .leading, spacing: 6) {

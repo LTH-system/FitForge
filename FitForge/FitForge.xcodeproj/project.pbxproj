@@ -45,6 +45,12 @@
 		000000000000000000000125 /* CloudBackupService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000227 /* CloudBackupService.swift */; };
 		000000000000000000000126 /* PremiumStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000228 /* PremiumStore.swift */; };
 		000000000000000000000127 /* PremiumPaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000229 /* PremiumPaywallView.swift */; };
+		000000000000000000000128 /* ProgressAnalytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000022A /* ProgressAnalytics.swift */; };
+		000000000000000000000129 /* CSVExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000022B /* CSVExporter.swift */; };
+		00000000000000000000012A /* PremiumLockedCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000022C /* PremiumLockedCard.swift */; };
+		00000000000000000000012B /* LongTermTrendPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000022D /* LongTermTrendPanel.swift */; };
+		00000000000000000000012C /* MuscleVolumePanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000022E /* MuscleVolumePanel.swift */; };
+		00000000000000000000012D /* NutrientBalancePanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000022F /* NutrientBalancePanel.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -89,6 +95,12 @@
 		000000000000000000000227 /* CloudBackupService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Services/CloudBackupService.swift; sourceTree = "<group>"; };
 		000000000000000000000228 /* PremiumStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Services/PremiumStore.swift; sourceTree = "<group>"; };
 		000000000000000000000229 /* PremiumPaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Features/Premium/PremiumPaywallView.swift; sourceTree = "<group>"; };
+		00000000000000000000022A /* ProgressAnalytics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Services/ProgressAnalytics.swift; sourceTree = "<group>"; };
+		00000000000000000000022B /* CSVExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Services/CSVExporter.swift; sourceTree = "<group>"; };
+		00000000000000000000022C /* PremiumLockedCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Features/Premium/PremiumLockedCard.swift; sourceTree = "<group>"; };
+		00000000000000000000022D /* LongTermTrendPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Features/Progress/LongTermTrendPanel.swift; sourceTree = "<group>"; };
+		00000000000000000000022E /* MuscleVolumePanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Features/Training/MuscleVolumePanel.swift; sourceTree = "<group>"; };
+		00000000000000000000022F /* NutrientBalancePanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Features/Meals/NutrientBalancePanel.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -151,6 +163,12 @@
 				000000000000000000000227 /* CloudBackupService.swift */,
 				000000000000000000000228 /* PremiumStore.swift */,
 				000000000000000000000229 /* PremiumPaywallView.swift */,
+				00000000000000000000022A /* ProgressAnalytics.swift */,
+				00000000000000000000022B /* CSVExporter.swift */,
+				00000000000000000000022C /* PremiumLockedCard.swift */,
+				00000000000000000000022D /* LongTermTrendPanel.swift */,
+				00000000000000000000022E /* MuscleVolumePanel.swift */,
+				00000000000000000000022F /* NutrientBalancePanel.swift */,
 				00000000000000000000020F /* Info.plist */,
 				000000000000000000000210 /* FitForge.entitlements */,
 			);
@@ -272,6 +290,12 @@
 				000000000000000000000125 /* CloudBackupService.swift in Sources */,
 				000000000000000000000126 /* PremiumStore.swift in Sources */,
 				000000000000000000000127 /* PremiumPaywallView.swift in Sources */,
+				000000000000000000000128 /* ProgressAnalytics.swift in Sources */,
+				000000000000000000000129 /* CSVExporter.swift in Sources */,
+				00000000000000000000012A /* PremiumLockedCard.swift in Sources */,
+				00000000000000000000012B /* LongTermTrendPanel.swift in Sources */,
+				00000000000000000000012C /* MuscleVolumePanel.swift in Sources */,
+				00000000000000000000012D /* NutrientBalancePanel.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
