@@ -10,7 +10,6 @@ struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var dayStartHour = 5
     @State private var dayStartMinute = 0
-    @State private var mealAIEndpointURLString = ""
     @State private var showEraseConfirm = false
     @State private var isEditingBody = false
     @State private var isEditingGoal = false
@@ -32,7 +31,6 @@ struct SettingsView: View {
                 lifeDayPanel
                 notificationPanel
                 healthKitPanel
-                connectionPanel
                 backupPanel
                 dataPanel
                 trustPanel
@@ -59,7 +57,6 @@ struct SettingsView: View {
         .onAppear {
             dayStartHour = store.preferences.dayStartHour
             dayStartMinute = store.preferences.dayStartMinute
-            mealAIEndpointURLString = store.preferences.mealAIEndpointURLString
             notificationSettings = store.preferences.notificationSettings
         }
         .task {
@@ -303,30 +300,6 @@ struct SettingsView: View {
                 }
                 .buttonStyle(FFSecondaryButtonStyle())
             }
-        }
-        .panelStyle()
-    }
-
-    // MARK: 今後の接続先
-
-    private var connectionPanel: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            SectionHeader(title: "今後の接続先")
-
-            TextField("食事AI API URL", text: $mealAIEndpointURLString)
-                .textInputAutocapitalization(.never)
-                .keyboardType(.URL)
-                .ffFieldStyle()
-
-            Button("食事AI API URLを保存") {
-                store.updateMealAIEndpoint(mealAIEndpointURLString)
-            }
-            .buttonStyle(FFSecondaryButtonStyle())
-
-            infoRow("camera.metering.matrix", "写真解析AI")
-            infoRow("sparkles", "食事テキスト解析AI")
-            infoRow("applewatch", "Apple Watchワークアウト")
-            infoRow("figure.outdoor.cycle", "Garmin / Strava")
         }
         .panelStyle()
     }
