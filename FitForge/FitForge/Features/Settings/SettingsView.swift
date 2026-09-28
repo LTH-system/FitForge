@@ -18,6 +18,7 @@ struct SettingsView: View {
     @State private var showRestoreConfirm = false
     @State private var isPaywallPresented = false
     @State private var isManagingSubscription = false
+    @State private var isRedeemingCode = false
     @State private var exportFiles: [URL] = []
     @State private var isExportSharePresented = false
     @State private var exportErrorMessage: String?
@@ -92,8 +93,19 @@ struct SettingsView: View {
                 }
                 .buttonStyle(FFPrimaryButtonStyle())
             }
+
+            // App Store Connectで発行した「オファーコード」を入力する。特定の人に無料・割引で提供するための仕組み
+            Button("プロモーションコードを使う") {
+                isRedeemingCode = true
+            }
+            .buttonStyle(FFSecondaryButtonStyle())
         }
         .panelStyle()
+        .offerCodeRedemption(isPresented: $isRedeemingCode) { result in
+            if case .success = result {
+                Task { await premium.refreshEntitlements() }
+            }
+        }
     }
 
     private var trialButtonTitle: String {

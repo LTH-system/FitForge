@@ -21,8 +21,7 @@ final class PremiumStore: ObservableObject {
 
     /// App Storeの標準の利用規約（EULA）
     static let termsOfUseURL = URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!
-    /// TODO(リリース前に必須): App Store Connectに登録しているプライバシーポリシーのURLに置き換える
-    static let privacyPolicyURL = URL(string: "https://example.com/fitforge/privacy")!
+    static let privacyPolicyURL = URL(string: "https://fitforge-privacy.vercel.app/")!
 
     @Published private(set) var products: [Product] = []
     @Published private(set) var isPremium = false
