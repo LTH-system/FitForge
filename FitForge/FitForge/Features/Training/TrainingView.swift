@@ -38,6 +38,7 @@ struct TrainingView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 12) {
+                RoutinesPanel()
                 exercisePickerCapsule
                 inputPanel
                 progressPanel

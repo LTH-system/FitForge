@@ -4,7 +4,10 @@ import Charts
 /// 自己ベスト更新の演出画面。筋トレの重量PBと有酸素の距離PBの両方に使う
 struct PersonalBestCelebrationView: View {
     @Environment(\.dismiss) private var dismiss
+    @State private var shareImage: Image?
 
+    /// 画面上部の見出し（自己ベスト更新・完走など）
+    var headline = "自己ベスト更新！"
     var exerciseTitle: String
     var valueText: String
     var unitText: String
@@ -59,6 +62,28 @@ struct PersonalBestCelebrationView: View {
         footerText = Self.footer(store: store)
     }
 
+    /// 大会（sessionType が race）の結果用。自己ベストでなくても完走を祝ってシェアできるようにする
+    init(raceResult session: CardioSession, store: AppStore) {
+        let allTrend = PersonalBestDetector.distanceTrend(kind: session.kind, among: store.cardioSessions)
+        let isBest = PersonalBestDetector.isBestDistance(session, among: store.cardioSessions)
+
+        headline = isBest ? "自己ベスト更新！" : "完走おめでとう！"
+        exerciseTitle = session.kind == .hyrox ? "HYROX" : "\(session.kind.rawValue)の大会"
+        valueText = Self.durationText(minutes: session.durationMinutes)
+        unitText = ""
+        badge = session.distanceKm > 0
+            ? Badge(label: "\(session.distanceKm.formatted(.number.precision(.fractionLength(1))))km", value: session.paceText, delta: isBest ? "距離の自己ベスト" : "")
+            : nil
+        trend = Self.points(from: allTrend)
+        trendTitle = "距離の推移"
+        footerText = Self.footer(store: store)
+    }
+
+    /// 90分 → 1:30:00、45分 → 45:00
+    private static func durationText(minutes: Int) -> String {
+        minutes >= 60 ? String(format: "%d:%02d:00", minutes / 60, minutes % 60) : String(format: "%d:00", minutes)
+    }
+
     /// 有酸素（ラン・HYROX・マラソン）の距離PB用
     init(celebrating session: CardioSession, store: AppStore) {
         let allTrend = PersonalBestDetector.distanceTrend(kind: session.kind, among: store.cardioSessions)
@@ -97,6 +122,45 @@ struct PersonalBestCelebrationView: View {
             VStack(spacing: 14) {
                 Spacer(minLength: 40)
 
+                resultContent
+
+                Spacer(minLength: 40)
+
+                if let shareImage {
+                    ShareLink(item: shareImage, preview: SharePreview(headline, image: shareImage)) {
+                        Label("画像でシェア", systemImage: "square.and.arrow.up")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity, minHeight: 48)
+                            .background(Color(hex: 0x1F2228), in: Capsule())
+                            .overlay(Capsule().strokeBorder(Color(hex: 0x2E323A), lineWidth: 1))
+                    }
+                }
+
+                Button {
+                    dismiss()
+                } label: {
+                    Text("続ける")
+                        .font(.system(size: 17, weight: .bold))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity, minHeight: 56)
+                        .background(
+                            LinearGradient(colors: [Color(hex: 0xCC4A26), Color(hex: 0xC4385A)], startPoint: .topLeading, endPoint: .bottomTrailing),
+                            in: Capsule()
+                        )
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 28)
+            .padding(.bottom, 28)
+        }
+        .preferredColorScheme(.dark)
+        .task { renderShareImage() }
+    }
+
+    /// 画面表示とシェア画像で共通の中身
+    private var resultContent: some View {
+            VStack(spacing: 14) {
                 ZStack {
                     Circle()
                         .fill(Color(hex: 0xFF7E5C).opacity(0.16))
@@ -109,7 +173,7 @@ struct PersonalBestCelebrationView: View {
                         .foregroundStyle(Color(hex: 0x15171B))
                 }
 
-                Text("自己ベスト更新！")
+                Text(headline)
                     .font(.system(size: 15, weight: .bold))
                     .tracking(1.5)
                     .foregroundStyle(Color(hex: 0xFF9D75))
@@ -162,27 +226,30 @@ struct PersonalBestCelebrationView: View {
                         .foregroundStyle(Color(hex: 0xA6ADB8))
                 }
                 .font(.system(size: 13))
-
-                Spacer(minLength: 40)
-
-                Button {
-                    dismiss()
-                } label: {
-                    Text("続ける")
-                        .font(.system(size: 17, weight: .bold))
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity, minHeight: 56)
-                        .background(
-                            LinearGradient(colors: [Color(hex: 0xCC4A26), Color(hex: 0xC4385A)], startPoint: .topLeading, endPoint: .bottomTrailing),
-                            in: Capsule()
-                        )
-                }
-                .buttonStyle(.plain)
             }
-            .padding(.horizontal, 28)
-            .padding(.bottom, 28)
+    }
+
+    // MARK: シェア画像
+
+    @MainActor
+    private func renderShareImage() {
+        let card = VStack(spacing: 18) {
+            resultContent
+            Text("FitForge")
+                .font(.system(size: 13, weight: .bold))
+                .tracking(2)
+                .foregroundStyle(Color(hex: 0x6A7079))
         }
-        .preferredColorScheme(.dark)
+        .padding(28)
+        .frame(width: 360)
+        .background(Color(hex: 0x15171B))
+        .environment(\.colorScheme, .dark)
+
+        let renderer = ImageRenderer(content: card)
+        renderer.scale = 3
+        if let uiImage = renderer.uiImage {
+            shareImage = Image(uiImage: uiImage)
+        }
     }
 
     private var trendChart: some View {

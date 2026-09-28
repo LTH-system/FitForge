@@ -213,6 +213,22 @@ struct StrengthSet: Identifiable, Hashable, Codable {
     }
 }
 
+/// ルーティンに含める1種目と、その目標セット数・回数
+struct RoutineExercise: Identifiable, Hashable, Codable {
+    var id = UUID()
+    var name: String
+    var targetSets: Int = 3
+    var targetReps: Int = 10
+}
+
+/// よく行う筋トレの組み合わせ。ワークアウト画面で順番に記録できる
+struct WorkoutRoutine: Identifiable, Hashable, Codable {
+    var id = UUID()
+    var name: String
+    var exercises: [RoutineExercise]
+    var createdAt = Date.now
+}
+
 struct CardioSession: Identifiable, Hashable, Codable {
     var id = UUID()
     var kind: WorkoutKind
@@ -224,6 +240,8 @@ struct CardioSession: Identifiable, Hashable, Codable {
     var rpe: Int?
     var sessionType: String = "easy"
     var source: DataSource = .manual
+    /// ヘルスケアから取り込んだワークアウトのID。同じワークアウトを二重に取り込まないために使う
+    var healthKitWorkoutID: UUID?
 
     var paceText: String {
         guard distanceKm > 0 else { return "--" }
@@ -340,6 +358,8 @@ struct UserPreferences: Hashable, Codable {
     var maintenanceCalibrationKcal = 0
     var lastRecalibration: MaintenanceRecalibration?
     var notificationSettings = NotificationSettings()
+    /// 取り込んだあとに利用者が削除したヘルスケアのワークアウト。次の取り込みで戻さない
+    var ignoredHealthKitWorkoutIDs: [UUID] = []
 
     static let japaneseDefault = UserPreferences(
         languageCode: "ja",
@@ -369,6 +389,7 @@ struct UserPreferences: Hashable, Codable {
         maintenanceCalibrationKcal = try container.decodeIfPresent(Int.self, forKey: .maintenanceCalibrationKcal) ?? 0
         lastRecalibration = try container.decodeIfPresent(MaintenanceRecalibration.self, forKey: .lastRecalibration)
         notificationSettings = try container.decodeIfPresent(NotificationSettings.self, forKey: .notificationSettings) ?? NotificationSettings()
+        ignoredHealthKitWorkoutIDs = try container.decodeIfPresent([UUID].self, forKey: .ignoredHealthKitWorkoutIDs) ?? []
     }
 }
 

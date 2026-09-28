@@ -9,6 +9,7 @@ struct AppSnapshot: Codable {
     var checkIns: [QuickCheckIn]
     var goal: GoalPlan
     var preferences: UserPreferences
+    var routines: [WorkoutRoutine]
 
     init(
         bodyMetrics: [BodyMetric],
@@ -18,7 +19,8 @@ struct AppSnapshot: Codable {
         cardioSessions: [CardioSession],
         checkIns: [QuickCheckIn],
         goal: GoalPlan,
-        preferences: UserPreferences
+        preferences: UserPreferences,
+        routines: [WorkoutRoutine] = []
     ) {
         self.bodyMetrics = bodyMetrics
         self.ledgers = ledgers
@@ -28,6 +30,7 @@ struct AppSnapshot: Codable {
         self.checkIns = checkIns
         self.goal = goal
         self.preferences = preferences
+        self.routines = routines
     }
 
     init(from decoder: Decoder) throws {
@@ -40,6 +43,7 @@ struct AppSnapshot: Codable {
         checkIns = try container.decodeIfPresent([QuickCheckIn].self, forKey: .checkIns) ?? []
         goal = try container.decode(GoalPlan.self, forKey: .goal)
         preferences = try container.decodeIfPresent(UserPreferences.self, forKey: .preferences) ?? .japaneseDefault
+        routines = try container.decodeIfPresent([WorkoutRoutine].self, forKey: .routines) ?? []
     }
 }
 

@@ -51,6 +51,7 @@
 		00000000000000000000012B /* LongTermTrendPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000022D /* LongTermTrendPanel.swift */; };
 		00000000000000000000012C /* MuscleVolumePanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000022E /* MuscleVolumePanel.swift */; };
 		00000000000000000000012D /* NutrientBalancePanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000022F /* NutrientBalancePanel.swift */; };
+		00000000000000000000012E /* RoutinesPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000230 /* RoutinesPanel.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -101,6 +102,7 @@
 		00000000000000000000022D /* LongTermTrendPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Features/Progress/LongTermTrendPanel.swift; sourceTree = "<group>"; };
 		00000000000000000000022E /* MuscleVolumePanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Features/Training/MuscleVolumePanel.swift; sourceTree = "<group>"; };
 		00000000000000000000022F /* NutrientBalancePanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Features/Meals/NutrientBalancePanel.swift; sourceTree = "<group>"; };
+		000000000000000000000230 /* RoutinesPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Features/Training/RoutinesPanel.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -169,6 +171,7 @@
 				00000000000000000000022D /* LongTermTrendPanel.swift */,
 				00000000000000000000022E /* MuscleVolumePanel.swift */,
 				00000000000000000000022F /* NutrientBalancePanel.swift */,
+				000000000000000000000230 /* RoutinesPanel.swift */,
 				00000000000000000000020F /* Info.plist */,
 				000000000000000000000210 /* FitForge.entitlements */,
 			);
@@ -296,6 +299,7 @@
 				00000000000000000000012B /* LongTermTrendPanel.swift in Sources */,
 				00000000000000000000012C /* MuscleVolumePanel.swift in Sources */,
 				00000000000000000000012D /* NutrientBalancePanel.swift in Sources */,
+				00000000000000000000012E /* RoutinesPanel.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

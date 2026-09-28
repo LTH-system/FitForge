@@ -378,6 +378,10 @@ struct DashboardView: View {
         if let bodyMassKg = healthKit.latestBodyMassKg {
             SwiftDataBridge.replaceHealthKitBodyMetric(weightKg: bodyMassKg, date: .now, preferences: store.preferences, context: modelContext)
         }
+        // 直近のランも取り込み、消費カロリーに反映する
+        for session in store.importHealthKitRuns(await healthKit.fetchRunningWorkouts(days: 7)) {
+            modelContext.insert(CardioEntry(from: session))
+        }
         try? modelContext.save()
     }
 }

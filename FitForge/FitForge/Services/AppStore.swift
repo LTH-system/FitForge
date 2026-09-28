@@ -10,6 +10,7 @@ final class AppStore: ObservableObject {
     @Published var checkIns: [QuickCheckIn]
     @Published var goal: GoalPlan
     @Published var preferences: UserPreferences
+    @Published var routines: [WorkoutRoutine]
 
     init() {
         if let snapshot = PersistenceService.load() {
@@ -21,6 +22,7 @@ final class AppStore: ObservableObject {
             checkIns = snapshot.checkIns
             goal = snapshot.goal
             preferences = snapshot.preferences
+            routines = snapshot.routines
         } else {
             // 新規ユーザーはゼロから開始する。デモデータは設定画面から明示的に投入する。
             bodyMetrics = []
@@ -31,6 +33,7 @@ final class AppStore: ObservableObject {
             checkIns = []
             goal = AppStore.defaultGoal
             preferences = .japaneseDefault
+            routines = []
         }
     }
 
@@ -43,7 +46,8 @@ final class AppStore: ObservableObject {
             cardioSessions: cardioSessions,
             checkIns: checkIns,
             goal: goal,
-            preferences: preferences
+            preferences: preferences,
+            routines: routines
         )
     }
 
@@ -69,6 +73,7 @@ final class AppStore: ObservableObject {
         checkIns = snapshot.checkIns
         goal = snapshot.goal
         preferences = snapshot.preferences
+        routines = snapshot.routines
         save()
     }
 
@@ -390,6 +395,65 @@ final class AppStore: ObservableObject {
         return session
     }
 
+    // MARK: ヘルスケアのワークアウト取り込み
+
+    /// ヘルスケアのランを運動記録に取り込む。取り込んだ記録を返す（SwiftDataへの反映は呼び出し側）。
+    /// 同じワークアウトのほか、同じ日に距離がほぼ同じ記録（手入力や、別アプリが書いた同じラン）があれば取り込まない
+    @discardableResult
+    func importHealthKitRuns(_ workouts: [HealthKitWorkoutSummary]) -> [CardioSession] {
+        var added: [CardioSession] = []
+        for workout in workouts where workout.distanceKm >= 0.1 {
+            let alreadyImported = cardioSessions.contains { $0.healthKitWorkoutID == workout.id }
+                || preferences.ignoredHealthKitWorkoutIDs.contains(workout.id)
+            let sameRun = cardioSessions.contains { session in
+                session.kind != .hyrox
+                    && LifeDayService.isSameLifeDay(session.date, workout.start, preferences: preferences)
+                    && abs(session.distanceKm - workout.distanceKm) <= max(0.5, workout.distanceKm * 0.1)
+            }
+            guard !alreadyImported, !sameRun else { continue }
+
+            let session = CardioSession(
+                kind: .running,
+                date: workout.start,
+                distanceKm: (workout.distanceKm * 100).rounded() / 100,
+                durationMinutes: workout.durationMinutes,
+                calories: workout.activeKcal,
+                note: "ヘルスケアから取り込み",
+                rpe: nil,
+                sessionType: "easy",
+                source: .healthKit,
+                healthKitWorkoutID: workout.id
+            )
+            cardioSessions.append(session)
+            added.append(session)
+        }
+        guard !added.isEmpty else { return [] }
+        cardioSessions.sort { $0.date > $1.date }
+        save()
+        return added
+    }
+
+    // MARK: ルーティン
+
+    /// 無料で作れるルーティンの数に達しているか（プレミアムは無制限）
+    func canAddRoutine(isPremium: Bool) -> Bool {
+        isPremium || routines.count < PremiumStore.freeRoutineLimit
+    }
+
+    func saveRoutine(_ routine: WorkoutRoutine) {
+        if let index = routines.firstIndex(where: { $0.id == routine.id }) {
+            routines[index] = routine
+        } else {
+            routines.append(routine)
+        }
+        save()
+    }
+
+    func deleteRoutine(_ routine: WorkoutRoutine) {
+        routines.removeAll { $0.id == routine.id }
+        save()
+    }
+
     // MARK: 削除
 
     func deleteMeal(_ meal: MealLog) {
@@ -405,6 +469,9 @@ final class AppStore: ObservableObject {
 
     func deleteCardioSession(_ session: CardioSession) {
         cardioSessions.removeAll { $0.id == session.id }
+        if let workoutID = session.healthKitWorkoutID, !preferences.ignoredHealthKitWorkoutIDs.contains(workoutID) {
+            preferences.ignoredHealthKitWorkoutIDs.append(workoutID)
+        }
         save()
     }
 

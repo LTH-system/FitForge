@@ -21,10 +21,14 @@ struct WorkoutSessionView: View {
     @State private var completedCount = 0
     @State private var now = Date.now
     @State private var celebratingSet: StrengthSet?
+    @State private var routineIndex = 0
 
+    /// ルーティンから始めたときの種目リスト
+    private let routine: WorkoutRoutine?
     private let clock = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
-    init(initialExercise: String) {
+    init(initialExercise: String, routine: WorkoutRoutine? = nil) {
+        self.routine = routine
         _exerciseName = State(initialValue: initialExercise)
         _weightKg = State(initialValue: 20)
         _reps = State(initialValue: 8)
@@ -54,6 +58,9 @@ struct WorkoutSessionView: View {
             ScrollView {
                 VStack(spacing: 14) {
                     header
+                    if let routine {
+                        routinePanel(routine)
+                    }
                     if let previousSet {
                         referencePanel(previousSet)
                     }
@@ -213,10 +220,102 @@ struct WorkoutSessionView: View {
     }
 
     private func prefillFromPrevious() {
-        guard let previousSet else { return }
-        weightKg = previousSet.weightKg
-        reps = previousSet.reps
-        rpe = previousSet.rpe ?? 8
+        if let previousSet {
+            weightKg = previousSet.weightKg
+            reps = previousSet.reps
+            rpe = previousSet.rpe ?? 8
+        }
+        // ルーティンの目標回数を優先する
+        if let target = currentRoutineExercise {
+            reps = target.targetReps
+        }
+    }
+
+    // MARK: ルーティン
+
+    private var currentRoutineExercise: RoutineExercise? {
+        guard let routine, routine.exercises.indices.contains(routineIndex) else { return nil }
+        return routine.exercises[routineIndex]
+    }
+
+    /// このセッションで、その種目を何セット記録したか
+    private func completedSets(for name: String) -> Int {
+        store.strengthSets.filter { $0.exercise == name && $0.date >= sessionStart }.count
+    }
+
+    private func moveToRoutineExercise(_ index: Int) {
+        guard let routine, routine.exercises.indices.contains(index) else { return }
+        routineIndex = index
+        exerciseName = routine.exercises[index].name
+        isResting = false
+        prefillFromPrevious()
+    }
+
+    private func routinePanel(_ routine: WorkoutRoutine) -> some View {
+        let current = currentRoutineExercise
+        let done = current.map { completedSets(for: $0.name) } ?? 0
+        let isCurrentDone = current.map { done >= $0.targetSets } ?? false
+        let isLast = routineIndex >= routine.exercises.count - 1
+
+        return VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Label(routine.name, systemImage: "list.bullet.rectangle")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(FF.textPrimary)
+                Spacer()
+                Text("種目 \(routineIndex + 1) / \(routine.exercises.count)")
+                    .font(FF.fontCaption)
+                    .monospacedDigit()
+                    .foregroundStyle(FF.textSecondary)
+            }
+
+            if let current {
+                Text("目標 \(current.targetSets)セット × \(current.targetReps)回 ・ 完了 \(min(done, current.targetSets))/\(current.targetSets)")
+                    .font(.system(size: 13, weight: .medium, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(isCurrentDone ? FF.deficit : FF.strength)
+            }
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
+                    ForEach(Array(routine.exercises.enumerated()), id: \.element.id) { index, exercise in
+                        let finished = completedSets(for: exercise.name) >= exercise.targetSets
+                        Button {
+                            moveToRoutineExercise(index)
+                        } label: {
+                            HStack(spacing: 4) {
+                                if finished {
+                                    Image(systemName: "checkmark")
+                                        .font(.system(size: 10, weight: .bold))
+                                }
+                                Text(exercise.name)
+                            }
+                            .font(FF.fontChip)
+                            .foregroundStyle(index == routineIndex ? .white : (finished ? FF.deficit : FF.textSecondary))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(index == routineIndex ? FF.strength : FF.surface, in: Capsule())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+
+            if !isLast {
+                Button {
+                    moveToRoutineExercise(routineIndex + 1)
+                } label: {
+                    Label("次の種目へ", systemImage: "arrow.right.circle.fill")
+                }
+                .buttonStyle(FFCompactButtonStyle(tint: FF.strength, isSelected: isCurrentDone))
+            } else if isCurrentDone {
+                Label("ルーティン完了！おつかれさまでした", systemImage: "checkmark.seal.fill")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(FF.deficit)
+            }
+        }
+        .padding(14)
+        .background(FF.surfaceSecondary, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
     // MARK: このセッションのセット

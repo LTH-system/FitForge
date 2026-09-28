@@ -1,12 +1,6 @@
 import SwiftUI
 import SwiftData
 
-/// fullScreenCover(item:)にString?を直接渡せないためのラッパー
-private struct IdentifiedExercise: Identifiable {
-    var name: String
-    var id: String { name }
-}
-
 struct RootView: View {
     @EnvironmentObject private var store: AppStore
     @EnvironmentObject private var cloudBackup: CloudBackupService
@@ -107,11 +101,8 @@ struct RootView: View {
                 QuickAddSheet()
                     .presentationDetents([.large])
             }
-            .fullScreenCover(item: Binding(
-                get: { router.workoutSessionExercise.map(IdentifiedExercise.init) },
-                set: { router.workoutSessionExercise = $0?.name }
-            )) { item in
-                WorkoutSessionView(initialExercise: item.name)
+            .fullScreenCover(item: $router.workoutLaunch) { launch in
+                WorkoutSessionView(initialExercise: launch.exercise, routine: launch.routine)
             }
             .task {
                 SwiftDataBridge.hydrateStoreIfAvailable(store, context: modelContext)

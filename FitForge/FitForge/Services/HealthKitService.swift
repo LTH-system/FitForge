@@ -9,6 +9,15 @@ struct HealthKitDailySummary: Identifiable, Hashable {
     var basalKcal: Int
 }
 
+/// ヘルスケアに保存されたランニングのワークアウト（Apple Watch・Garmin・Stravaなどが書き込んだもの）
+struct HealthKitWorkoutSummary: Hashable {
+    var id: UUID
+    var start: Date
+    var durationMinutes: Int
+    var distanceKm: Double
+    var activeKcal: Int
+}
+
 @MainActor
 final class HealthKitService: ObservableObject {
     @Published var authorizationStatusText = "未連携"
@@ -83,6 +92,39 @@ final class HealthKitService: ObservableObject {
         }
 
         recentDailySummaries = summaries
+    }
+
+    /// 直近の日数分のランニングのワークアウトを、古い順に読み取る
+    func fetchRunningWorkouts(days: Int) async -> [HealthKitWorkoutSummary] {
+        guard isAvailable,
+              let start = Calendar.current.date(byAdding: .day, value: -days, to: .now) else { return [] }
+        let predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
+            HKQuery.predicateForSamples(withStart: start, end: .now),
+            HKQuery.predicateForWorkouts(with: .running)
+        ])
+        let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
+
+        return await withCheckedContinuation { continuation in
+            let query = HKSampleQuery(sampleType: HKObjectType.workoutType(), predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: [sort]) { _, samples, _ in
+                let workouts = (samples as? [HKWorkout] ?? []).map { workout in
+                    let distance = workout.statistics(for: HKQuantityType(.distanceWalkingRunning))?.sumQuantity()?.doubleValue(for: .meterUnit(with: .kilo))
+                        ?? workout.totalDistance?.doubleValue(for: .meterUnit(with: .kilo))
+                        ?? 0
+                    let kcal = workout.statistics(for: HKQuantityType(.activeEnergyBurned))?.sumQuantity()?.doubleValue(for: .kilocalorie())
+                        ?? workout.totalEnergyBurned?.doubleValue(for: .kilocalorie())
+                        ?? 0
+                    return HealthKitWorkoutSummary(
+                        id: workout.uuid,
+                        start: workout.startDate,
+                        durationMinutes: max(1, Int((workout.duration / 60).rounded())),
+                        distanceKm: distance,
+                        activeKcal: Int(kcal.rounded())
+                    )
+                }
+                continuation.resume(returning: workouts)
+            }
+            store.execute(query)
+        }
     }
 
     private func todaySum(for type: HKQuantityType, unit: HKUnit, preferences: UserPreferences) async -> Double {

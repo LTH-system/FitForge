@@ -1,8 +1,21 @@
 import SwiftUI
 import SwiftData
 
+/// 記録後に出す演出の種類
+private enum CardioCelebration: Identifiable {
+    case personalBest(CardioSession)
+    case race(CardioSession)
+
+    var id: UUID {
+        switch self {
+        case .personalBest(let session), .race(let session): session.id
+        }
+    }
+}
+
 struct CardioView: View {
     @EnvironmentObject private var store: AppStore
+    @EnvironmentObject private var healthKit: HealthKitService
     @Environment(\.modelContext) private var modelContext
     @State private var kind: WorkoutKind = .running
     @State private var distanceKm = 5.0
@@ -12,13 +25,16 @@ struct CardioView: View {
     @State private var rpe = 5
     @State private var sessionType = "easy"
     @State private var savedCount = 0
-    @State private var celebratingSession: CardioSession?
+    @State private var celebration: CardioCelebration?
+    @State private var isImporting = false
+    @State private var importMessage: String?
 
     private let sessionTypes = ["easy", "tempo", "interval", "long", "race", "hyrox"]
 
     var body: some View {
         ScrollView {
             VStack(spacing: 12) {
+                importPanel
                 inputPanel
                 summaryPanel
                 recentPanel
@@ -27,8 +43,72 @@ struct CardioView: View {
         }
         .background(FF.background)
         .sensoryFeedback(.success, trigger: savedCount)
-        .fullScreenCover(item: $celebratingSession) { session in
-            PersonalBestCelebrationView(celebrating: session, store: store)
+        .fullScreenCover(item: $celebration) { celebration in
+            switch celebration {
+            case .personalBest(let session):
+                PersonalBestCelebrationView(celebrating: session, store: store)
+            case .race(let session):
+                PersonalBestCelebrationView(raceResult: session, store: store)
+            }
+        }
+    }
+
+    // MARK: ヘルスケアから取り込む
+
+    private var importPanel: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                IconSeat(systemName: "heart.text.square", color: FF.run, size: 34)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("ヘルスケアのランを取り込む")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(FF.textPrimary)
+                    Text("Apple Watch・Garmin・Stravaなどがヘルスケアに保存したランを、直近30日分まとめて記録します")
+                        .font(FF.fontCaption)
+                        .foregroundStyle(FF.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            Button {
+                Task { await importRuns() }
+            } label: {
+                if isImporting {
+                    ProgressView()
+                } else {
+                    Label("取り込む", systemImage: "arrow.down.circle")
+                }
+            }
+            .buttonStyle(FFSecondaryButtonStyle())
+            .disabled(isImporting || !healthKit.isAvailable)
+
+            if let importMessage {
+                Text(importMessage)
+                    .font(FF.fontCaption)
+                    .foregroundStyle(FF.textSecondary)
+            }
+        }
+        .panelStyle()
+    }
+
+    private func importRuns() async {
+        isImporting = true
+        defer { isImporting = false }
+        if healthKit.authorizationStatusText != "連携済み" {
+            await healthKit.requestAuthorization(preferences: store.preferences)
+        }
+        let workouts = await healthKit.fetchRunningWorkouts(days: 30)
+        let added = store.importHealthKitRuns(workouts)
+        for session in added {
+            modelContext.insert(CardioEntry(from: session))
+        }
+        try? modelContext.save()
+        if added.isEmpty {
+            importMessage = workouts.isEmpty
+                ? "直近30日のランが見つかりませんでした。ヘルスケアの「ワークアウト」の読み取りが許可されているか確認してください"
+                : "新しく取り込むランはありませんでした（取り込み済み、または同じ日に同じくらいの距離の記録があります）"
+        } else {
+            importMessage = "\(added.count)件のランを取り込みました"
+            savedCount += 1
         }
     }
 
@@ -96,8 +176,11 @@ struct CardioView: View {
                 try? modelContext.save()
                 note = ""
                 savedCount += 1
-                if PersonalBestDetector.isBestDistance(saved, among: store.cardioSessions) {
-                    celebratingSession = saved
+                // 大会の記録は、自己ベストでなくても結果カードを出してシェアできるようにする
+                if saved.sessionType == "race" {
+                    celebration = .race(saved)
+                } else if PersonalBestDetector.isBestDistance(saved, among: store.cardioSessions) {
+                    celebration = .personalBest(saved)
                 }
             } label: {
                 Label("追加", systemImage: "plus.circle.fill")

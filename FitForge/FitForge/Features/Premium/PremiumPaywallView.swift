@@ -2,12 +2,12 @@ import SwiftUI
 import StoreKit
 
 /// プレミアムで使えるようになる機能。各画面で有料機能を案内するときにも使う
-/// ルーティン無制限は、ルーティン機能（フェーズB）を入れるときに追加する
 enum PremiumFeature: String, CaseIterable, Identifiable {
     case trends
     case muscleVolume
     case nutritionBalance
     case progression
+    case unlimitedRoutines
     case export
 
     var id: String { rawValue }
@@ -18,6 +18,7 @@ enum PremiumFeature: String, CaseIterable, Identifiable {
         case .muscleVolume: "部位別のトレーニング量"
         case .nutritionBalance: "栄養バランスの過不足"
         case .progression: "次回の重量の提案"
+        case .unlimitedRoutines: "ルーティンを無制限に作成"
         case .export: "記録のCSV書き出し"
         }
     }
@@ -28,6 +29,7 @@ enum PremiumFeature: String, CaseIterable, Identifiable {
         case .muscleVolume: "胸・背中・脚など、どこをどれだけ鍛えたかを週ごとに確認できます"
         case .nutritionBalance: "たんぱく質・脂質・炭水化物が目標に対して足りているかを日ごとに確認できます"
         case .progression: "前回の記録から、次に挑戦する重量と回数を提案します"
+        case .unlimitedRoutines: "無料では\(PremiumStore.freeRoutineLimit)個までのルーティンを、いくつでも作れます"
         case .export: "食事・筋トレ・運動・体重の記録を表計算ソフトで開ける形式で書き出せます"
         }
     }
@@ -38,6 +40,7 @@ enum PremiumFeature: String, CaseIterable, Identifiable {
         case .muscleVolume: "figure.strengthtraining.traditional"
         case .nutritionBalance: "chart.pie"
         case .progression: "arrow.up.forward.circle"
+        case .unlimitedRoutines: "list.bullet.rectangle"
         case .export: "square.and.arrow.up"
         }
     }

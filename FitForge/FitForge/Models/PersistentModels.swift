@@ -97,6 +97,7 @@ final class CardioEntry {
     var rpe: Int?
     var sessionType: String
     var sourceRaw: String
+    var healthKitWorkoutIDRaw: String = ""
 
     init(from session: CardioSession) {
         id = session.id
@@ -109,6 +110,7 @@ final class CardioEntry {
         rpe = session.rpe
         sessionType = session.sessionType
         sourceRaw = session.source.rawValue
+        healthKitWorkoutIDRaw = session.healthKitWorkoutID?.uuidString ?? ""
     }
 
     var cardioSession: CardioSession {
@@ -122,7 +124,8 @@ final class CardioEntry {
             note: note,
             rpe: rpe,
             sessionType: sessionType,
-            source: DataSource(rawValue: sourceRaw) ?? .manual
+            source: DataSource(rawValue: sourceRaw) ?? .manual,
+            healthKitWorkoutID: UUID(uuidString: healthKitWorkoutIDRaw)
         )
     }
 }
