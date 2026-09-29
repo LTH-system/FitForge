@@ -145,7 +145,7 @@ struct PersonalBestCelebrationView: View {
                         .foregroundStyle(.white)
                         .frame(maxWidth: .infinity, minHeight: 56)
                         .background(
-                            LinearGradient(colors: [Color(hex: 0xCC4A26), Color(hex: 0xC4385A)], startPoint: .topLeading, endPoint: .bottomTrailing),
+                            LinearGradient(colors: [Color(hex: 0x1F7A2B), Color(hex: 0x1C5F42)], startPoint: .topLeading, endPoint: .bottomTrailing),
                             in: Capsule()
                         )
                 }
@@ -163,10 +163,10 @@ struct PersonalBestCelebrationView: View {
             VStack(spacing: 14) {
                 ZStack {
                     Circle()
-                        .fill(Color(hex: 0xFF7E5C).opacity(0.16))
+                        .fill(Color(hex: 0x2DBF5D).opacity(0.16))
                         .frame(width: 108, height: 108)
                     Circle()
-                        .fill(Color(hex: 0xFF7E5C))
+                        .fill(Color(hex: 0x2DBF5D))
                         .frame(width: 78, height: 78)
                     Image(systemName: "trophy.fill")
                         .font(.system(size: 34, weight: .bold))
@@ -176,7 +176,7 @@ struct PersonalBestCelebrationView: View {
                 Text(headline)
                     .font(.system(size: 15, weight: .bold))
                     .tracking(1.5)
-                    .foregroundStyle(Color(hex: 0xFF9D75))
+                    .foregroundStyle(Color(hex: 0x8BEE90))
 
                 Text(exerciseTitle)
                     .font(.system(size: 24, weight: .bold))
@@ -221,7 +221,7 @@ struct PersonalBestCelebrationView: View {
 
                 HStack(spacing: 6) {
                     Image(systemName: "flame.fill")
-                        .foregroundStyle(Color(hex: 0xFF7E5C))
+                        .foregroundStyle(Color(hex: 0x2DBF5D))
                     Text(footerText)
                         .foregroundStyle(Color(hex: 0xA6ADB8))
                 }
@@ -265,10 +265,10 @@ struct PersonalBestCelebrationView: View {
             }
             Chart(trend) { point in
                 LineMark(x: .value("日付", point.dateLabel), y: .value("値", point.value))
-                    .foregroundStyle(Color(hex: 0xFF7E5C))
+                    .foregroundStyle(Color(hex: 0x2DBF5D))
                     .lineStyle(StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
                 PointMark(x: .value("日付", point.dateLabel), y: .value("値", point.value))
-                    .foregroundStyle(point.isLatest ? Color(hex: 0x15171B) : Color(hex: 0xFF7E5C))
+                    .foregroundStyle(point.isLatest ? Color(hex: 0x15171B) : Color(hex: 0x2DBF5D))
                     .symbolSize(point.isLatest ? 90 : 40)
             }
             .chartYAxis(.hidden)
@@ -292,7 +292,7 @@ struct PersonalBestCelebrationView: View {
             ZStack {
                 ForEach(0..<10, id: \.self) { index in
                     let colors: [Color] = [
-                        Color(hex: 0xFF7E5C), Color(hex: 0xF7C766), Color(hex: 0x48DCCE),
+                        Color(hex: 0x2DBF5D), Color(hex: 0xF7C766), Color(hex: 0x48DCCE),
                         Color(hex: 0xF27BA3), Color(hex: 0x7BA5F5), Color(hex: 0xB07FF0), Color(hex: 0x54D6A4)
                     ]
                     let x = CGFloat((index * 37) % 100) / 100 * geo.size.width

@@ -1,8 +1,8 @@
 import SwiftUI
 import UIKit
 
-// FitForge デザインシステム v1.0
-// コンセプト: ウォームライト基調 × エンバー(残り火)グラデのエナジーアクセント
+// FitForge デザインシステム v2.0
+// コンセプト: ウォームライト基調 × リーフグリーンのエナジーアクセント（アプリアイコンと統一）
 // 全色はここに一元定義する。ビュー内での直接 hex 記述は禁止。
 
 extension Color {
@@ -30,13 +30,15 @@ enum FF {
     /// ダークモードでのみカード輪郭を出すボーダー色
     static let cardBorder = Color(light: .clear, dark: Color.white.opacity(0.08))
 
-    // MARK: アクセント（エンバーコーラル）
-    static let accent = Color(light: Color(hex: 0xFF6B4A), dark: Color(hex: 0xFF7E5C))
-    static let gradientStart = Color(light: Color(hex: 0xFF7A3D), dark: Color(hex: 0xFF8A50))
-    static let gradientEnd = Color(light: Color(hex: 0xFF4E6A), dark: Color(hex: 0xFF5E78))
+    // MARK: アクセント（リーフグリーン。AppIconから採取した実際の色を使用）
+    static let accent = Color(light: Color(hex: 0x29AE55), dark: Color(hex: 0x2DBF5D))
+    /// AppIconの「F」の明るい上部（ハイライト）
+    static let gradientStart = Color(light: Color(hex: 0x83E488), dark: Color(hex: 0x94E898))
+    /// AppIconの「F」の深い下部（シャドウ）
+    static let gradientEnd = Color(light: Color(hex: 0x1D8250), dark: Color(hex: 0x21935A))
     static let accentSoft = Color(
-        light: Color(hex: 0xFF6B4A).opacity(0.12),
-        dark: Color(hex: 0xFF7E5C).opacity(0.18)
+        light: Color(hex: 0x29AE55).opacity(0.12),
+        dark: Color(hex: 0x2DBF5D).opacity(0.18)
     )
     /// ヒーロー要素（リング・装飾）専用。常に topLeading → bottomTrailing
     static let accentGradient = LinearGradient(
@@ -46,14 +48,14 @@ enum FF {
     )
     /// 白文字を載せるCTA用。accentGradientだと白文字のコントラストが足りないため濃くしている
     static let ctaGradient = LinearGradient(
-        colors: [Color(hex: 0xCC4A26), Color(hex: 0xC4385A)],
+        colors: [Color(hex: 0x1F7A2B), Color(hex: 0x1C5F42)],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
     /// 白文字を載せる単色の塗り（小さなボタン・アイコン台座）
-    static let ctaSolid = Color(hex: 0xCC4A26)
+    static let ctaSolid = Color(hex: 0x1F7A2B)
     /// アクセント色の文字。背景とのコントラストを確保した濃さ
-    static let accentText = Color(light: Color(hex: 0xB23A1C), dark: Color(hex: 0xFF9D75))
+    static let accentText = Color(light: Color(hex: 0x0D6D2D), dark: Color(hex: 0x8BEE90))
 
     // MARK: 機能色 — カロリー（「赤=悪」を使わない。超過はアンバー）
     static let intake = Color(light: Color(hex: 0xFF8A5C), dark: Color(hex: 0xFF9D75))
